@@ -334,6 +334,8 @@ struct i2c_client {
 	i2c_slave_cb_t slave_cb;	/* callback for slave mode	*/
 #endif
 };
+
+// 根据设备struct device 指针获得其外围封装的对象（struct i2c_client）的地址。
 #define to_i2c_client(d) container_of(d, struct i2c_client, dev)
 
 extern struct i2c_client *i2c_verify_client(struct device *dev);

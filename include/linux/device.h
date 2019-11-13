@@ -113,24 +113,24 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  * private data.
  */
 struct bus_type {
-	const char		*name;
-	const char		*dev_name;
+	const char		*name;       // 总线的名字，eg:"i2c"
+	const char		*dev_name;   // 用于子系统枚举设备，如("foo%u"， dev->id)。
 	struct device		*dev_root;
-	const struct attribute_group **bus_groups;
-	const struct attribute_group **dev_groups;
-	const struct attribute_group **drv_groups;
+	const struct attribute_group **bus_groups;  // 总线的默认属性
+	const struct attribute_group **dev_groups;  // 总线上设备的默认属性
+	const struct attribute_group **drv_groups;  // 总线上设备驱动的默认属性
 
-	int (*match)(struct device *dev, struct device_driver *drv);
+	int (*match)(struct device *dev, struct device_driver *drv);    // 设备与驱动的匹配规则方法
 	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
-	int (*probe)(struct device *dev);
-	int (*remove)(struct device *dev);
-	void (*shutdown)(struct device *dev);
+	int (*probe)(struct device *dev);    // 设备加载操作
+	int (*remove)(struct device *dev);   // 设备移除操作
+	void (*shutdown)(struct device *dev);  // 设备关机操作
 
 	int (*online)(struct device *dev);
 	int (*offline)(struct device *dev);
 
-	int (*suspend)(struct device *dev, pm_message_t state);
-	int (*resume)(struct device *dev);
+	int (*suspend)(struct device *dev, pm_message_t state);  // 设备挂起操作
+	int (*resume)(struct device *dev); // 设备唤醒操作
 
 	int (*num_vf)(struct device *dev);
 
@@ -553,6 +553,11 @@ extern void class_destroy(struct class *cls);
  * information, equivalent to the kobj_type of a kobject.
  * If "name" is specified, the uevent will contain it in
  * the DEVTYPE variable.
+ */
+ /*
+  * 设备类型，“struct device”被嵌入。类或总线可以包含不同类型的设备，如“分区”和“磁盘”、鼠标和“事件”。
+  * 它标识设备类型并携带类型特定的信息，相当于kobject的kobj_type。
+  * 如果指定了“name”，uevent将在DEVTYPE变量中包含它。
  */
 struct device_type {
 	const char *name;

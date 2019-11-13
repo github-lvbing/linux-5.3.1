@@ -213,6 +213,8 @@ i2c_of_match_device_sysfs(const struct of_device_id *matches,
 	return NULL;
 }
 
+//  检查i2c设备（ struct i2c_client） 是否在i2c设备树匹配列表（struct of_device_id ）中。
+//  是返回of_device_id指针。否返回NULL.
 const struct of_device_id
 *i2c_of_match_device(const struct of_device_id *matches,
 		     struct i2c_client *client)
@@ -222,7 +224,8 @@ const struct of_device_id
 	if (!(client && matches))
 		return NULL;
 
-	match = of_match_device(matches, &client->dev);
+	match = of_match_device(matches, &client->dev); // ==> \drivers\of\device.c
+	
 	if (match)
 		return match;
 

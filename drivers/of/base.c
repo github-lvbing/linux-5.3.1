@@ -55,6 +55,8 @@ DEFINE_MUTEX(of_mutex);
  */
 DEFINE_RAW_SPINLOCK(devtree_lock);
 
+// 判断设备树节点struct device_node 的路径名是否与name匹配。
+// eg: uart@fe001000 中的“uart”
 bool of_node_name_eq(const struct device_node *np, const char *name)
 {
 	const char *node_name;
@@ -79,8 +81,10 @@ bool of_node_name_prefix(const struct device_node *np, const char *prefix)
 }
 EXPORT_SYMBOL(of_node_name_prefix);
 
+// 判断 设备树节点的“设备类型”的值是否是const char *type。
 static bool __of_node_is_type(const struct device_node *np, const char *type)
 {
+	// 获得键为"device_type"的值
 	const char *match = __of_get_property(np, "device_type", NULL);
 
 	return np && match && type && !strcmp(match, type);
@@ -250,6 +254,8 @@ void __init of_core_init(void)
 		proc_symlink("device-tree", NULL, "/sys/firmware/devicetree/base");
 }
 
+// 检查 device_node 节点（对应设备树中的节点）中资源链表struct	property（对应设备树中的节点的键值对）中 哪个链表节点的name成员是否等于name。
+// 是返回struct	property 指针，并返回struct	property 的成员length的值到lenp。
 static struct property *__of_find_property(const struct device_node *np,
 					   const char *name, int *lenp)
 {
@@ -327,6 +333,7 @@ EXPORT_SYMBOL(of_find_all_nodes);
  * Find a property with a given name for a given node
  * and return the value.
  */
+ // 为给定节点查找具有给定名称的属性并返回该值(值是个字符串地址)。
 const void *__of_get_property(const struct device_node *np,
 			      const char *name, int *lenp)
 {
@@ -507,6 +514,17 @@ EXPORT_SYMBOL(of_cpu_node_to_id);
  * 10. type
  * 11. name
  */
+ /**
+  * of_device_is_compatible()——检查节点是否匹配给定的约束
+  * @device:指向节点的指针
+  * @compat:需要的兼容字符串，空或""为任何匹配
+  * @type:所需的device_type值，NULL或“”用于任何匹配
+  * @name:需要的节点名，空值或“”用于任何匹配，检查给定的@compat、@type和@name字符串是否匹配给定的@device属性。可以通过传递NULL或空字符串作为约束来跳过约束。
+  * 没有匹配时返回0，匹配时返回正整数。返回值是一个相对分数，值越大表示匹配越好。
+  * 得分加权为最具体的兼容值，以获得最高分。接下来是匹配类型，然后是匹配名称。
+  * 实际上，这导致了以下优先顺序的匹配:
+  */
+
 static int __of_device_is_compatible(const struct device_node *device,
 				     const char *compat, const char *type, const char *name)
 {
@@ -515,7 +533,9 @@ static int __of_device_is_compatible(const struct device_node *device,
 	int index = 0, score = 0;
 
 	/* Compatible match has highest priority */
+	// 兼容的匹配具有最高的优先级
 	if (compat && compat[0]) {
+		// 解析设备树中的键值对"compatible"
 		prop = __of_find_property(device, "compatible", NULL);
 		for (cp = of_prop_next_string(prop, NULL); cp;
 		     cp = of_prop_next_string(prop, cp), index++) {
@@ -529,14 +549,18 @@ static int __of_device_is_compatible(const struct device_node *device,
 	}
 
 	/* Matching type is better than matching name */
+	// 匹配类型比匹配名称更好
 	if (type && type[0]) {
+		//  解析设备树中的键值对 "device_type"
 		if (!__of_node_is_type(device, type))
 			return 0;
 		score += 2;
 	}
 
 	/* Matching name is a bit better than not */
+	// 匹配名称比不匹配要好一些
 	if (name && name[0]) {
+		// 解析设备树中的路径名
 		if (!of_node_name_eq(device, name))
 			return 0;
 		score++;
@@ -1104,6 +1128,7 @@ out:
 }
 EXPORT_SYMBOL(of_find_node_with_property);
 
+// 实现完成匹配规则，决定并返回匹配的条目指针。
 static
 const struct of_device_id *__of_match_node(const struct of_device_id *matches,
 					   const struct device_node *node)
@@ -1114,7 +1139,10 @@ const struct of_device_id *__of_match_node(const struct of_device_id *matches,
 	if (!matches)
 		return NULL;
 
+	// struct of_device_id的成员	name[32];type[32];compatible[128];有一个即可有匹配资格。
+	// 根据每个匹配条目的分数，决定选取最佳匹配项
 	for (; matches->name[0] || matches->type[0] || matches->compatible[0]; matches++) {
+		// 评估匹配分数
 		score = __of_device_is_compatible(node, matches->compatible,
 						  matches->type, matches->name);
 		if (score > best_score) {
@@ -1133,6 +1161,12 @@ const struct of_device_id *__of_match_node(const struct of_device_id *matches,
  *
  *	Low level utility function used by device matching.
  */
+ /*
+  * of_match_node—告诉device_node是否有匹配的of_match结构
+  * @matches:要搜索的设备匹配结构的数组
+  * @node:要匹配的设备结构	   
+  * 设备匹配使用的低级别实用功能。
+  */
 const struct of_device_id *of_match_node(const struct of_device_id *matches,
 					 const struct device_node *node)
 {
@@ -1140,6 +1174,7 @@ const struct of_device_id *of_match_node(const struct of_device_id *matches,
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
+	// 完成匹配判断，仅仅是匹配判断
 	match = __of_match_node(matches, node);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 	return match;

@@ -23,12 +23,18 @@
  * Used by a driver to check whether an platform_device present in the
  * system is in its list of supported devices.
  */
+ /*
+  * of_match_device—告诉结构设备是否匹配of_device_id列表
+  * @matches:要搜索的设备匹配结构的数组要匹配的设备结构
+  * 用于驱动程序检查系统中出现的platform_device是否在其支持的设备列表中。
+  */
 const struct of_device_id *of_match_device(const struct of_device_id *matches,
 					   const struct device *dev)
 {
+	// struct device_node 关联设备树节点
 	if ((!matches) || (!dev->of_node))
 		return NULL;
-	return of_match_node(matches, dev->of_node);
+	return of_match_node(matches, dev->of_node);  // ==> \drivers\of\base.c
 }
 EXPORT_SYMBOL(of_match_device);
 

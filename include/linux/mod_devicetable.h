@@ -452,9 +452,10 @@ struct rpmsg_device_id {
 #define I2C_NAME_SIZE	20
 #define I2C_MODULE_PREFIX "i2c:"
 
+// 匹配列表结构体
 struct i2c_device_id {
 	char name[I2C_NAME_SIZE];
-	kernel_ulong_t driver_data;	/* Data private to the driver */
+	kernel_ulong_t driver_data;	/* Data private to the driver */ // 驱动程序的私有数据
 };
 
 /* pci_epf */

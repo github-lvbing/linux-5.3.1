@@ -56,6 +56,9 @@
  * core_lock protects i2c_adapter_idr, and guarantees that device detection,
  * deletion of detected devices are serialized
  */
+/*
+ *core_lock保护i2c_adapter_idr，保证设备检测、被检测设备的删除被序列化
+ */
 static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
@@ -64,6 +67,7 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 static DEFINE_STATIC_KEY_FALSE(i2c_trace_msg_key);
 static bool is_registered;
 
+// 追溯
 int i2c_transfer_trace_reg(void)
 {
 	static_branch_inc(&i2c_trace_msg_key);
@@ -75,13 +79,17 @@ void i2c_transfer_trace_unreg(void)
 	static_branch_dec(&i2c_trace_msg_key);
 }
 
+// 在i2c_device_id中查找指定的i2c_client，匹配上就返回 i2c_device_id 指针,否则返回NULL。
+// 匹配原则是  i2c_client->name ?=  i2c_device_id->name
 const struct i2c_device_id *i2c_match_id(const struct i2c_device_id *id,
 						const struct i2c_client *client)
 {
+	// must  id and client is not NULL
 	if (!(id && client))
 		return NULL;
-
+	// this why is {}. at "struct i2c_device_id"。循环遍历
 	while (id->name[0]) {
+		// i2c_client->name ?=  i2c_device_id->name
 		if (strcmp(client->name, id->name) == 0)
 			return id;
 		id++;
@@ -90,23 +98,27 @@ const struct i2c_device_id *i2c_match_id(const struct i2c_device_id *id,
 }
 EXPORT_SYMBOL_GPL(i2c_match_id);
 
+// i2c设备（struct i2c_client）的设备模型(struct device) 与设备驱动模型(struct device_driver)匹配 ,匹配上返回1，否则返回0
+// 匹配的优先顺序是：设备树-->ACPI表-->驱动列表
+// 被指定到对象（struct bus_type i2c_bus_type）的一个i2c设备与i2c驱动的匹配方法。 
 static int i2c_device_match(struct device *dev, struct device_driver *drv)
 {
+    //  校验struct device 是个i2c设备
 	struct i2c_client	*client = i2c_verify_client(dev);
 	struct i2c_driver	*driver;
 
 
-	/* Attempt an OF style match */
-	if (i2c_of_match_device(drv->of_match_table, client))
+	/* Attempt an OF style match */  // 尝试设备树样式匹配
+	if (i2c_of_match_device(drv->of_match_table, client)) // ==> drivers\i2c\i2c-core-of.c
 		return 1;
 
-	/* Then ACPI style match */
+	/* Then ACPI style match */     // 尝试 ACPI样式匹配
 	if (acpi_driver_match_device(dev, drv))
 		return 1;
 
 	driver = to_i2c_driver(drv);
 
-	/* Finally an I2C match */
+	/* Finally an I2C match */       // 最后是I2C匹配(关注设备驱动的struct i2c_device_id表name成员)
 	if (i2c_match_id(driver->id_table, client))
 		return 1;
 
@@ -303,6 +315,7 @@ static int i2c_smbus_host_notify_to_irq(const struct i2c_client *client)
 	return irq > 0 ? irq : -ENXIO;
 }
 
+// 被指定到对象（struct bus_type i2c_bus_type）的一个i2c设备与i2c驱动的匹配后前期预处理方法。
 static int i2c_device_probe(struct device *dev)
 {
 	struct i2c_client	*client = i2c_verify_client(dev);
@@ -406,6 +419,7 @@ err_clear_wakeup_irq:
 	return status;
 }
 
+// 被指定到对象（struct bus_type i2c_bus_type）的一个i2c设备与i2c驱动的解除匹配后后期处理方法。
 static int i2c_device_remove(struct device *dev)
 {
 	struct i2c_client	*client = i2c_verify_client(dev);
@@ -433,6 +447,7 @@ static int i2c_device_remove(struct device *dev)
 	return status;
 }
 
+// 被指定到对象（struct bus_type i2c_bus_type）的一个i2c驱动关闭i2c设备的关闭方法。
 static void i2c_device_shutdown(struct device *dev)
 {
 	struct i2c_client *client = i2c_verify_client(dev);
@@ -484,6 +499,7 @@ static struct attribute *i2c_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(i2c_dev);
 
+// i2c设备总线类型对象
 struct bus_type i2c_bus_type = {
 	.name		= "i2c",
 	.match		= i2c_device_match,
@@ -493,6 +509,7 @@ struct bus_type i2c_bus_type = {
 };
 EXPORT_SYMBOL_GPL(i2c_bus_type);
 
+// i2c设备类型对象
 struct device_type i2c_client_type = {
 	.groups		= i2c_dev_groups,
 	.uevent		= i2c_device_uevent,
@@ -509,6 +526,13 @@ EXPORT_SYMBOL_GPL(i2c_client_type);
  * iterators like @device_for_each_child(), you can't assume very much
  * about the nodes you find.  Use this function to avoid oopses caused
  * by wrongly treating some non-I2C device as an i2c_client.
+ */
+ /*
+ * i2c_verify_client—返回参数i2c_client，或NULL
+ *  @dev: device，可能是在遍历驱动程序模型树时从某个驱动程序模型迭代器中获得的，
+ *                也可能使用像@device_for_each_child()这样的驱动程序模型迭代器，您不能对找到的节点做太多假设。
+ *                使用此函数可以避免由于错误地将某些非i2c设备视为i2c_client而导致的oopses。
+ *
  */
 struct i2c_client *i2c_verify_client(struct device *dev)
 {
@@ -1107,6 +1131,10 @@ static DEVICE_ATTR(new_device, S_IWUSR, NULL, i2c_sysfs_new_device);
  *
  * Parameter checking may look overzealous, but we really don't want
  * the user to delete the wrong device.
+ */
+ /*
+ *当然也允许用户删除他们实例化的设备，如果他们弄错了的话。这个接口只能用于删除上面i2c_sysfs_new_device实例化的设备。这保证了我们不会删除某些内核代码仍然有引用的设备。
+ *参数检查可能看起来过于热心，但我们真的不希望用户删除错误的设备。
  */
 static ssize_t
 i2c_sysfs_delete_device(struct device *dev, struct device_attribute *attr,

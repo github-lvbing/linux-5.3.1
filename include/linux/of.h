@@ -28,11 +28,12 @@
 typedef u32 phandle;
 typedef u32 ihandle;
 
+// 描述设备树给予设备的的资源节点
 struct property {
-	char	*name;
+	char	*name;  // 会用于设备与驱动的匹配
 	int	length;
 	void	*value;
-	struct property *next;
+	struct property *next; // 本设备的下一个资源节点
 #if defined(CONFIG_OF_DYNAMIC) || defined(CONFIG_SPARC)
 	unsigned long _flags;
 #endif
@@ -51,10 +52,10 @@ struct of_irq_controller;
 struct device_node {
 	const char *name;
 	phandle phandle;
-	const char *full_name;
+	const char *full_name;  // 本节点指定的路径全名
 	struct fwnode_handle fwnode;
 
-	struct	property *properties;
+	struct	property *properties;  //  属于本节点的所有的财产的链表头
 	struct	property *deadprops;	/* removed properties */
 	struct	device_node *parent;
 	struct	device_node *child;

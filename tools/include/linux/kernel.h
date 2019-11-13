@@ -30,6 +30,12 @@
  * @member:	the name of the member within the struct.
  *
  */
+/*
+ * container_of -将一个结构的成员强制转换为包含它的结构
+ * @ptr:指向成员的指针。
+ * @type:嵌入的容器结构的类型。
+* @member:结构体中成员的名字。
+ */
 #define container_of(ptr, type, member) ({			\
 	const typeof(((type *)0)->member) * __mptr = (ptr);	\
 	(type *)((char *)__mptr - offsetof(type, member)); })
