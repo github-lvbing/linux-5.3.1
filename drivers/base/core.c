@@ -2456,6 +2456,14 @@ const char *device_get_devnode(struct device *dev,
  * We check the return of @fn each time. If it returns anything
  * other than 0, we break out and return that value.
  */
+ /*
+ * device_for_each_child -设备子迭代器。
+ * @parent:父结构设备。
+ * @fn:为每个设备调用的函数。
+ * @data:回调的数据。
+ * 遍历@parent的子设备，分别调用@fn，并传递它@data。
+ * 我们每次都检查@fn的返回。如果它返回非0，我们就跳出并返回那个值。
+ */
 int device_for_each_child(struct device *parent, void *data,
 			  int (*fn)(struct device *dev, void *data))
 {

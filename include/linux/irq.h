@@ -140,19 +140,19 @@ struct irq_domain;
  * @msi_desc:		MSI descriptor
  * @ipi_offset:		Offset of first IPI target cpu in @affinity. Optional.
  */
-struct irq_common_data {
-	unsigned int		__private state_use_accessors;
+struct irq_common_data { // 所有irqchips共享的每个irq数据
+	unsigned int		__private state_use_accessors;  // irq芯片功能的状态信息。使用访问器函数来处理它
 #ifdef CONFIG_NUMA
-	unsigned int		node;
+	unsigned int		node;         // 用于平衡的节点索引
 #endif
-	void			*handler_data;
-	struct msi_desc		*msi_desc;
-	cpumask_var_t		affinity;
+	void			*handler_data;    // irq_chip方法的每irq数据
+	struct msi_desc		*msi_desc;    // msi描述符
+	cpumask_var_t		affinity;     // irq对SMP的亲和性。如果这是一个IPI相关的irq，那么这就是可以发送IPI的cpu掩码。
 #ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
-	cpumask_var_t		effective_affinity;
+	cpumask_var_t		effective_affinity;  // SMP上有效的IRQ关联性，因为一些IRQ芯片不支持多CPU目的地。@affinity的子集。
 #endif
 #ifdef CONFIG_GENERIC_IRQ_IPI
-	unsigned int		ipi_offset;
+	unsigned int		ipi_offset;   // 第一个IPI目标cpu在@affinity中的偏移量。可选的。
 #endif
 };
 
@@ -170,45 +170,45 @@ struct irq_common_data {
  * @chip_data:		platform-specific per-chip private data for the chip
  *			methods, to allow shared chip implementations
  */
-struct irq_data {
-	u32			mask;
-	unsigned int		irq;
-	unsigned long		hwirq;
-	struct irq_common_data	*common;
-	struct irq_chip		*chip;
-	struct irq_domain	*domain;
+struct irq_data { // 每个irq芯片的数据传递给芯片功能
+	u32			mask;                // 用于访问芯片寄存器的预计算位掩码
+	unsigned int		irq;         // 中断号
+	unsigned long		hwirq;       // 硬件中断号，在中断域的本地
+	struct irq_common_data	*common; // 指向所有irqchip共享的数据
+	struct irq_chip		*chip;       // 低电平中断硬件访问
+	struct irq_domain	*domain;     // 中断翻译域;负责hwirq号与linux irq号的映射。
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
-	struct irq_data		*parent_data;
+	struct irq_data		*parent_data;// 指向父结构irq_data以支持irq_domain层次结构的指针
 #endif
-	void			*chip_data;
+	void			*chip_data;      // 每个芯片方法的特定平台私有数据，允许共享芯片实现
 };
 
 /*
  * Bit masks for irq_common_data.state_use_accessors
  *
- * IRQD_TRIGGER_MASK		- Mask for the trigger type bits
- * IRQD_SETAFFINITY_PENDING	- Affinity setting is pending
- * IRQD_ACTIVATED		- Interrupt has already been activated
- * IRQD_NO_BALANCING		- Balancing disabled for this IRQ
- * IRQD_PER_CPU			- Interrupt is per cpu
- * IRQD_AFFINITY_SET		- Interrupt affinity was set
- * IRQD_LEVEL			- Interrupt is level triggered
- * IRQD_WAKEUP_STATE		- Interrupt is configured for wakeup
- *				  from suspend
- * IRQD_MOVE_PCNTXT		- Interrupt can be moved in process
+ * IRQD_TRIGGER_MASK		- Mask for the trigger type bits   // 用于触发器类型位的掩码
+ * IRQD_SETAFFINITY_PENDING	- Affinity setting is pending      // 关联设置为挂起
+ * IRQD_ACTIVATED		- Interrupt has already been activated // 中断已经被激活
+ * IRQD_NO_BALANCING		- Balancing disabled for this IRQ  // 为这个IRQ禁用了平衡
+ * IRQD_PER_CPU			- Interrupt is per cpu                 // 中断是每个cpu
+ * IRQD_AFFINITY_SET		- Interrupt affinity was set       // 设置了中断关联
+ * IRQD_LEVEL			- Interrupt is level triggered         // 中断被触发
+ * IRQD_WAKEUP_STATE		- Interrupt is configured for wakeup  // 中断被配置为从挂起进行唤醒
+ *				  from suspend                     
+ * IRQD_MOVE_PCNTXT		- Interrupt can be moved in process       // 可以在进程上下文中移动中断
  *				  context
- * IRQD_IRQ_DISABLED		- Disabled state of the interrupt
- * IRQD_IRQ_MASKED		- Masked state of the interrupt
- * IRQD_IRQ_INPROGRESS		- In progress state of the interrupt
- * IRQD_WAKEUP_ARMED		- Wakeup mode armed
- * IRQD_FORWARDED_TO_VCPU	- The interrupt is forwarded to a VCPU
- * IRQD_AFFINITY_MANAGED	- Affinity is auto-managed by the kernel
- * IRQD_IRQ_STARTED		- Startup state of the interrupt
- * IRQD_MANAGED_SHUTDOWN	- Interrupt was shutdown due to empty affinity
- *				  mask. Applies only to affinity managed irqs.
- * IRQD_SINGLE_TARGET		- IRQ allows only a single affinity target
- * IRQD_DEFAULT_TRIGGER_SET	- Expected trigger already been set
- * IRQD_CAN_RESERVE		- Can use reservation mode
+ * IRQD_IRQ_DISABLED		- Disabled state of the interrupt     // 禁用中断的状态
+ * IRQD_IRQ_MASKED		- Masked state of the interrupt           // 中断的掩码状态
+ * IRQD_IRQ_INPROGRESS		- In progress state of the interrupt  // 中断的正在处理状态
+ * IRQD_WAKEUP_ARMED		- Wakeup mode armed                   // 武装的Wakeup模式
+ * IRQD_FORWARDED_TO_VCPU	- The interrupt is forwarded to a VCPU  // 中断被转发到一个VCPU
+ * IRQD_AFFINITY_MANAGED	- Affinity is auto-managed by the kernel  // 亲缘关系由内核自动管理
+ * IRQD_IRQ_STARTED		- Startup state of the interrupt              // 中断的启动状态
+ * IRQD_MANAGED_SHUTDOWN	- Interrupt was shutdown due to empty affinity  //由于关联掩码为空，中断被关闭。仅适用于关联管理的irq。
+ *				  mask. Applies only to affinity managed irqs. 
+ * IRQD_SINGLE_TARGET		- IRQ allows only a single affinity target // IRQ只允许一个关联目标
+ * IRQD_DEFAULT_TRIGGER_SET	- Expected trigger already been set         // 已经设置了预期的触发器
+ * IRQD_CAN_RESERVE		- Can use reservation mode                      // 可以使用预约模式
  */
 enum {
 	IRQD_TRIGGER_MASK		= 0xf,
@@ -273,6 +273,8 @@ static inline u32 irqd_get_trigger_type(struct irq_data *d)
 /*
  * Must only be called inside irq_chip.irq_set_type() functions or
  * from the DT/ACPI setup code.
+ *
+ * 只能在irq_chip.irq_set_type()函数中调用，或者从DT/ACPI设置代码中调用。
  */
 static inline void irqd_set_trigger_type(struct irq_data *d, u32 type)
 {

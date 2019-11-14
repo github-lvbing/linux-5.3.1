@@ -542,6 +542,13 @@ EXPORT_SYMBOL_GPL(device_remove_properties);
  * is no real firmware node associated with @dev! In that case the callers
  * should create a software node and assign it to @dev directly.
  */
+ /**
+ * device_add_properties -向设备对象添加属性集合。
+ * @dev:添加属性的设备。
+ * @properties:要添加的属性集合。
+ * 将@properties表示的设备属性集合与@dev关联起来。该函数接受@properties的副本。
+ * 警告:如果已知没有与@dev关联的真正固件节点，则调用者不应使用此函数。在这种情况下，调用者应该创建一个软件节点并将其直接分配给@dev。
+ */
 int device_add_properties(struct device *dev,
 			  const struct property_entry *properties)
 {

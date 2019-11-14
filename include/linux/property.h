@@ -228,11 +228,11 @@ static inline int fwnode_property_count_u64(const struct fwnode_handle *fwnode,
  * @pointer: Pointer to the property (an array of items of the given type).
  * @value: Value of the property (when it is a single item of the given type).
  */
-struct property_entry {
-	const char *name;
-	size_t length;
-	bool is_array;
-	enum dev_prop_type type;
+struct property_entry { // "Built-in" 设备属性表示。
+	const char *name;      // 属性的名称。
+	size_t length;         // 组成值的数据长度。
+	bool is_array;         // 当属性是数组时为真。
+	enum dev_prop_type type;  // union中的数据类型
 	union {
 		union {
 			const u8 *u8_data;
@@ -240,14 +240,14 @@ struct property_entry {
 			const u32 *u32_data;
 			const u64 *u64_data;
 			const char * const *str;
-		} pointer;
+		} pointer;        // 指向属性(给定类型的项数组)的指针。
 		union {
 			u8 u8_data;
 			u16 u16_data;
 			u32 u32_data;
 			u64 u64_data;
 			const char *str;
-		} value;
+		} value;         // 属性的值(当它是给定类型的单个项目时)。
 	};
 };
 

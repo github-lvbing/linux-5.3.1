@@ -544,6 +544,7 @@ EXPORT_SYMBOL(i2c_verify_client);
 
 
 /* Return a unique address which takes the flags of the client into account */
+// 返回i2c设备的的硬件地址
 static unsigned short i2c_encode_flags_to_addr(struct i2c_client *client)
 {
 	unsigned short addr = client->addr;
@@ -560,6 +561,8 @@ static unsigned short i2c_encode_flags_to_addr(struct i2c_client *client)
 
 /* This is a permissive address validity check, I2C address map constraints
  * are purposely not enforced, except for the general call address. */
+ // 这是一个许可的地址有效性检查，除了一般的调用地址,I2C地址 map的约束是故意不执行的。
+ // 有效返回0.
 static int i2c_check_addr_validity(unsigned int addr, unsigned short flags)
 {
 	if (flags & I2C_CLIENT_TEN) {
@@ -578,23 +581,26 @@ static int i2c_check_addr_validity(unsigned int addr, unsigned short flags)
  * device uses a reserved address, then it shouldn't be probed. 7-bit
  * addressing is assumed, 10-bit address devices are rare and should be
  * explicitly enumerated. */
+ // 这是一个严格的地址有效性检查，用于探测。
+ // 如果一个设备使用一个保留地址，那么它不应该被探测。假设是7位地址，10位地址设备很少，应该显式枚举。
 int i2c_check_7bit_addr_validity_strict(unsigned short addr)
 {
 	/*
-	 * Reserved addresses per I2C specification:
-	 *  0x00       General call address / START byte
-	 *  0x01       CBUS address
-	 *  0x02       Reserved for different bus format
-	 *  0x03       Reserved for future purposes
-	 *  0x04-0x07  Hs-mode master code
-	 *  0x78-0x7b  10-bit slave addressing
-	 *  0x7c-0x7f  Reserved for future purposes
+	 * Reserved addresses per I2C specification:  *按I2C规格预留地址:
+	 *  0x00       General call address / START byte   一般调用地址/开始字节
+	 *  0x01       CBUS address                       CBUS地址
+	 *  0x02       Reserved for different bus format  预留给不同的总线格式
+	 *  0x03       Reserved for future purposes      保留作将来使用
+	 *  0x04-0x07  Hs-mode master code               Hs-mode主代码
+	 *  0x78-0x7b  10-bit slave addressing          10位从地址
+	 *  0x7c-0x7f  Reserved for future purposes     保留作将来使用
 	 */
 	if (addr < 0x08 || addr > 0x77)
 		return -EINVAL;
 	return 0;
 }
 
+// struct device 是个i2c设备，且它的硬件地址是否是addrp，有则返回-EBUSY。说明已经被使用，忙。
 static int __i2c_check_addr_busy(struct device *dev, void *addrp)
 {
 	struct i2c_client	*client = i2c_verify_client(dev);
@@ -606,42 +612,48 @@ static int __i2c_check_addr_busy(struct device *dev, void *addrp)
 }
 
 /* walk up mux tree */
+// 递归查找struct i2c_adapter的父亲。判断父亲上是否有“addrp”这个i2c设备。有返回-EBUSY。无返回0。
 static int i2c_check_mux_parents(struct i2c_adapter *adapter, int addr)
 {
-	struct i2c_adapter *parent = i2c_parent_is_i2c_adapter(adapter);
+	//  获得适配器的父设备地址。是适配器设备返回地址，不是返回NULL。
+	struct i2c_adapter *parent = i2c_parent_is_2c_adapter(adapter);
 	int result;
-
+	// 通过迭代，在适配器上查找其上硬件设备地址为addr的设备。有这个设备返回-EBUSY，无返回0。
 	result = device_for_each_child(&adapter->dev, &addr,
 					__i2c_check_addr_busy);
 
+	// 适配器adapter的父设备不是一个适配器，或者父设备（适配器adapter）上不存在addr这个设备孩子，则返回0。否则继续递归继续查找父父设备。
 	if (!result && parent)
 		result = i2c_check_mux_parents(parent, addr);
 
 	return result;
 }
 
-/* recurse down mux tree */
+/* recurse down mux tree */ 
+// 递归查找struct device的孩子。判断孩子上是否有“addrp”这个i2c设备。有返回-EBUSY。无返回0。
 static int i2c_check_mux_children(struct device *dev, void *addrp)
 {
 	int result;
-
+	// 若设备是一个适配器设备，则遍历它的孩子。直到它的孩子遍历完或者找到了一个i2c设备。会触发返回。
 	if (dev->type == &i2c_adapter_type)
 		result = device_for_each_child(dev, addrp,
 						i2c_check_mux_children);
+	// 若设备是不是一个适配器设备，若 struct device是否是i2c设备，且它的硬件地址是addrp，是说明有这个设备。返回-EBUSY。
 	else
 		result = __i2c_check_addr_busy(dev, addrp);
 
 	return result;
 }
 
+// 查找判断在适配器上是否有地址为“addr”的i2c设备。已经占用就返回-EBUSY，无返回0。
 static int i2c_check_addr_busy(struct i2c_adapter *adapter, int addr)
 {
 	struct i2c_adapter *parent = i2c_parent_is_i2c_adapter(adapter);
 	int result = 0;
-
+	// 若adapter的父设备也是一个适配器，递归查找它的父亲。判断父亲上是否有“addr”这个i2c设备。有返回-EBUSY。无返回0。
 	if (parent)
 		result = i2c_check_mux_parents(parent, addr);
-
+	// 若adapter的父设备不是一个适配器，或者父设备不包含“addr”这个i2c设备。就递归查找struct device的孩子。判断孩子上是否有“addrp”这个i2c设备。有返回-EBUSY。无返回0。
 	if (!result)
 		result = device_for_each_child(&adapter->dev, &addr,
 						i2c_check_mux_children);
@@ -655,6 +667,12 @@ static int i2c_check_addr_busy(struct i2c_adapter *adapter, int addr)
  * @flags: I2C_LOCK_ROOT_ADAPTER locks the root i2c adapter, I2C_LOCK_SEGMENT
  *	locks only this branch in the adapter tree
  */
+ /**
+ * i2c_adapter_lock_bus -获得对I2C总线段的独占访问
+ * @adapter:目标I2C总线段
+ * @flags: I2C_LOCK_ROOT_ADAPTER 锁定根i2c适配器，
+ *         I2C_LOCK_SEGMENT 仅锁定适配器树中的这个分支
+ */
 static void i2c_adapter_lock_bus(struct i2c_adapter *adapter,
 				 unsigned int flags)
 {
@@ -667,6 +685,13 @@ static void i2c_adapter_lock_bus(struct i2c_adapter *adapter,
  * @flags: I2C_LOCK_ROOT_ADAPTER trylocks the root i2c adapter, I2C_LOCK_SEGMENT
  *	trylocks only this branch in the adapter tree
  */
+ /**
+ * i2c_adapter_lock_bus -尝试获得对I2C总线段的独占访问
+ * @adapter:目标I2C总线段
+ * @flags: I2C_LOCK_ROOT_ADAPTER 锁定根i2c适配器，
+ *		   I2C_LOCK_SEGMENT 仅锁定适配器树中的这个分支
+ */
+
 static int i2c_adapter_trylock_bus(struct i2c_adapter *adapter,
 				   unsigned int flags)
 {
@@ -679,32 +704,39 @@ static int i2c_adapter_trylock_bus(struct i2c_adapter *adapter,
  * @flags: I2C_LOCK_ROOT_ADAPTER unlocks the root i2c adapter, I2C_LOCK_SEGMENT
  *	unlocks only this branch in the adapter tree
  */
+/**
+ * i2c_adapter_unlock_bus -释放对I2C总线段的独占访问
+ * @adapter:目标I2C总线段
+ * @flags: I2C_LOCK_ROOT_ADAPTER解锁根i2c适配器，I2C_LOCK_SEGMENT仅解锁适配器树中的这个分支
+ */
 static void i2c_adapter_unlock_bus(struct i2c_adapter *adapter,
 				   unsigned int flags)
 {
 	rt_mutex_unlock(&adapter->bus_lock);
 }
 
+// 给i2c设备client 设置名字（根据struct i2c_adapter 或者struct i2c_board_info）
 static void i2c_dev_set_name(struct i2c_adapter *adap,
 			     struct i2c_client *client,
 			     struct i2c_board_info const *info)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
-
+	// 优先使用 struct i2c_board_info  信息
 	if (info && info->dev_name) {
 		dev_set_name(&client->dev, "i2c-%s", info->dev_name);
 		return;
 	}
-
+	// 其次使用 struct i2c_adapter 信息
 	if (adev) {
 		dev_set_name(&client->dev, "i2c-%s", acpi_dev_name(adev));
 		return;
 	}
-
+	// 最后使用 struct i2c_adapter 信息和 client地址信息
 	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
 		     i2c_encode_flags_to_addr(client));
 }
 
+// 在资源表 struct resource中查找中断资源，并返回中断号，找不到返回0.
 int i2c_dev_irq_from_resources(const struct resource *resources,
 			       unsigned int num_resources)
 {
@@ -713,15 +745,16 @@ int i2c_dev_irq_from_resources(const struct resource *resources,
 
 	for (i = 0; i < num_resources; i++) {
 		const struct resource *r = &resources[i];
-
+        // 若不是IO的中断资源，就下一个
 		if (resource_type(r) != IORESOURCE_IRQ)
 			continue;
-
+        // 若是中断资源资源，且有具体的定义。就查找中断树，以获得struct irq_data。
 		if (r->flags & IORESOURCE_BITS) {
 			irqd = irq_get_irq_data(r->start);
+			// 无法获得 irq_data 函数立刻返回0.
 			if (!irqd)
 				break;
-
+            // 若获得 irq_data ，更新irq芯片功能的状态信息。
 			irqd_set_trigger_type(irqd, r->flags & IORESOURCE_BITS);
 		}
 
@@ -747,29 +780,40 @@ int i2c_dev_irq_from_resources(const struct resource *resources,
  * This returns the new i2c client, which may be saved for later use with
  * i2c_unregister_device(); or an ERR_PTR to describe the error.
  */
+ /*
+  * i2c_new_client_device -实例化一个i2c设备，依附适配器adap后并注册到i2c总线。
+  * @adap:管理设备的适配器
+  * @info:描述一个I2C设备;bus_num被忽略上下文:可以休眠
+  * 创建一个i2c设备。绑定是通过驱动程序模型probe()/remove()方法来处理的。
+  * 当我们从这个函数返回时，驱动程序可能被绑定到这个设备，或者稍后的任何时刻(例如，可能热插拔将加载驱动程序模块)。
+  * 主板初始化逻辑不适合使用这个调用，因为它通常在arch_initcall()期间运行，比任何i2c_adapter都要早得多。
+  * 这将返回新的i2c客户端，该客户端可能被保存起来，以便稍后与i2c_unregister_device()一起使用;或者使用ERR_PTR来描述错误。
+  */
 struct i2c_client *
 i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 {
 	struct i2c_client	*client;
 	int			status;
-
+    // 创建一个i2c设备对象 struct i2c_client
 	client = kzalloc(sizeof *client, GFP_KERNEL);
 	if (!client)
 		return ERR_PTR(-ENOMEM);
-
+	// 指定i2c设备的适配器为 adap
 	client->adapter = adap;
-
+    // 将info的平台数据、flags、addr、irq指定为i2c设备的平台数据、flags、addr、和init_irq。
 	client->dev.platform_data = info->platform_data;
 	client->flags = info->flags;
 	client->addr = info->addr;
 
 	client->init_irq = info->irq;
+	// 如果 info->irq=0，无中断信息，就在i2c_board_info的资源表 struct resource中查找中断资源，并返回中断号，找不到返回0.
 	if (!client->init_irq)
 		client->init_irq = i2c_dev_irq_from_resources(info->resources,
 							 info->num_resources);
-
+	// 将info的芯片类型标识，作为 i2c_client 的name。
 	strlcpy(client->name, info->type, sizeof(client->name));
 
+	// 校验i2c_client.addr 的有效性。无效的话，就err后退出。
 	status = i2c_check_addr_validity(client->addr, client->flags);
 	if (status) {
 		dev_err(&adap->dev, "Invalid %d-bit I2C address 0x%02hx\n",
@@ -777,19 +821,23 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 		goto out_err_silent;
 	}
 
-	/* Check for address business */
+	/* Check for address business  */ 
+	// 查询地址是否已经被占用,若已经占用就err后退出。
 	status = i2c_check_addr_busy(adap, i2c_encode_flags_to_addr(client));
 	if (status)
 		goto out_err;
-
+	// i2c设备的父设备指定为适配器；总线为 i2c_bus_type；设备类型为 i2c_client_type。
 	client->dev.parent = &client->adapter->dev;
 	client->dev.bus = &i2c_bus_type;
 	client->dev.type = &i2c_client_type;
+	// ??
 	client->dev.of_node = of_node_get(info->of_node);
 	client->dev.fwnode = info->fwnode;
 
+	// 为i2c设备对象设置名字。
 	i2c_dev_set_name(adap, client, info);
 
+	// 若存在设备的附加属性，向设备对象添加属性集合
 	if (info->properties) {
 		status = device_add_properties(&client->dev, info->properties);
 		if (status) {
@@ -800,6 +848,7 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 		}
 	}
 
+	// 将i2c设备对象 注册到i2c总线中。
 	status = device_register(&client->dev);
 	if (status)
 		goto out_free_props;
@@ -838,6 +887,14 @@ EXPORT_SYMBOL_GPL(i2c_new_client_device);
  * This returns the new i2c client, which may be saved for later use with
  * i2c_unregister_device(); or NULL to indicate an error.
  */
+/**
+ * i2c_new_device——实例化一个i2c设备，依附适配器adap后并注册到i2c总线。
+ * @adap:管理设备的适配器
+ * @info:描述一个I2C设备;bus_num被忽略上下文:可以休眠
+ * 这个被弃用的函数与@i2c_new_client_device具有相同的功能，它只是返回NULL，而不是ERR_PTR，以防与当前I2C API兼容出现错误。
+ * 一旦所有用户都进行了转换，它将被删除。
+ * 这将返回新的i2c客户端，该客户端可能被保存起来，以便稍后与i2c_unregister_device()一起使用;或NULL表示错误。
+ */
 struct i2c_client *
 i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 {
@@ -853,6 +910,10 @@ EXPORT_SYMBOL_GPL(i2c_new_device);
  * i2c_unregister_device - reverse effect of i2c_new_device()
  * @client: value returned from i2c_new_device()
  * Context: can sleep
+ */
+/**
+ * i2c_unregister_device - i2c_new_device()的反向效果
+ * @client:从i2c_new_device()上下文返回的值:可以休眠
  */
 void i2c_unregister_device(struct i2c_client *client)
 {
@@ -887,6 +948,7 @@ static int dummy_remove(struct i2c_client *client)
 	return 0;
 }
 
+// 一个仿真的 i2c 设备驱动。
 static struct i2c_driver dummy_driver = {
 	.driver.name	= "dummy",
 	.probe		= dummy_probe,

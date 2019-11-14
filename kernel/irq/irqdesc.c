@@ -348,6 +348,7 @@ static void irq_insert_desc(unsigned int irq, struct irq_desc *desc)
 	radix_tree_insert(&irq_desc_tree, irq, desc);
 }
 
+// 在中断树irq_desc_tree上查找中断号irq的struct irq_desc信息。
 struct irq_desc *irq_to_desc(unsigned int irq)
 {
 	return radix_tree_lookup(&irq_desc_tree, irq);

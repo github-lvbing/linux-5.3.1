@@ -52,7 +52,7 @@ struct of_irq_controller;
 struct device_node {
 	const char *name;
 	phandle phandle;
-	const char *full_name;  // 本节点指定的路径全名
+	const char *full_name;         // 本节点指定的路径全名
 	struct fwnode_handle fwnode;
 
 	struct	property *properties;  //  属于本节点的所有的财产的链表头

@@ -310,28 +310,43 @@ struct i2c_driver {
  * i2c bus. The behaviour exposed to Linux is defined by the driver
  * managing the device.
  */
+ /**
+ * struct i2c_client—表示一个I2C从设备
+ * @flags:查看I2C_CLIENT_*可能的标志
+ * @addr:用于连接到父适配器的I2C总线上的地址。
+ * @name:表示设备的类型，通常是一个芯片名称，它足够通用，可以隐藏二次源和兼容的修订。
+ * @adapter:管理承载这个I2C设备的总线段
+ * @dev:驱动程序模型设备节点的奴隶。
+ * @irq:表示该设备产生的IRQ(如果有的话)
+ * @detect: i2c_driver的成员。客户列表或i2c-core的userspace_devices列表
+ * @slave_cb:使用适配器的I2C从属模式时的回调。适配器调用它来将从事件传递给从驱动程序。
+ *
+ * i2c_client标识连接到i2c总线的单个设备(即芯片)。暴露给Linux的行为是由管理设备的驱动程序定义的。
+ */
+ /*使用数据包错误检查*/
+
 struct i2c_client {
-	unsigned short flags;		/* div., see below		*/
-#define I2C_CLIENT_PEC		0x04	/* Use Packet Error Checking */
-#define I2C_CLIENT_TEN		0x10	/* we have a ten bit chip address */
+	unsigned short flags;		    /* div., see below		*/
+#define I2C_CLIENT_PEC		0x04	/* Use Packet Error Checking */           // 使用包错误检查
+#define I2C_CLIENT_TEN		0x10	/* we have a ten bit chip address */      // 我们有一个10位的芯片地址
 					/* Must equal I2C_M_TEN below */
-#define I2C_CLIENT_SLAVE	0x20	/* we are the slave */
-#define I2C_CLIENT_HOST_NOTIFY	0x40	/* We want to use I2C host notify */
-#define I2C_CLIENT_WAKE		0x80	/* for board_info; true iff can wake */
-#define I2C_CLIENT_SCCB		0x9000	/* Use Omnivision SCCB protocol */
+#define I2C_CLIENT_SLAVE	0x20	/* we are the slave */                    // 我们是从设备
+#define I2C_CLIENT_HOST_NOTIFY	0x40	/* We want to use I2C host notify */  // 我们想使用I2C主机notify
+#define I2C_CLIENT_WAKE		0x80	/* for board_info; true iff can wake */   // board_info;真正的iff可以醒来
+#define I2C_CLIENT_SCCB		0x9000	/* Use Omnivision SCCB protocol */        // 使用全景SCCB协议
 					/* Must match I2C_M_STOP|IGNORE_NAK */
 
-	unsigned short addr;		/* chip address - NOTE: 7bit	*/
+	unsigned short addr;		/* chip address - NOTE: 7bit	*/     // 设备的 _LOWER_ 7 bits 物理地址
 					/* addresses are stored in the	*/
 					/* _LOWER_ 7 bits		*/
-	char name[I2C_NAME_SIZE];
-	struct i2c_adapter *adapter;	/* the adapter we sit on	*/
-	struct device dev;		/* the device structure		*/
-	int init_irq;			/* irq set at initialization	*/
-	int irq;			/* irq issued by device		*/
+	char name[I2C_NAME_SIZE];                                           // 设备的名字标识（可能来自struct i2c_board_info.name）
+	struct i2c_adapter *adapter;	/* the adapter we sit on	*/      // 依附的适配器
+	struct device dev;		/* the device structure		*/              // 设备结构
+	int init_irq;			/* irq set at initialization	*/          // 初始化时设置irq
+	int irq;			/* irq issued by device		*/                  // 由设备发出的irq
 	struct list_head detected;
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
-	i2c_slave_cb_t slave_cb;	/* callback for slave mode	*/
+	i2c_slave_cb_t slave_cb;	/* callback for slave mode	*/          // 从模式回调
 #endif
 };
 
@@ -384,42 +399,49 @@ static inline bool i2c_detect_slave_mode(struct device *dev) { return false; }
 #endif
 
 /**
- * struct i2c_board_info - template for device creation
- * @type: chip type, to initialize i2c_client.name
- * @flags: to initialize i2c_client.flags
- * @addr: stored in i2c_client.addr
- * @dev_name: Overrides the default <busnr>-<addr> dev_name if set
- * @platform_data: stored in i2c_client.dev.platform_data
- * @of_node: pointer to OpenFirmware device node
- * @fwnode: device node supplied by the platform firmware
- * @properties: additional device properties for the device
- * @resources: resources associated with the device
- * @num_resources: number of resources in the @resources array
- * @irq: stored in i2c_client.irq
+ * struct i2c_board_info - template for device creation    
+ * @type: chip type, to initialize i2c_client.name           
+ * @flags: to initialize i2c_client.flags                   
+ * @addr: stored in i2c_client.addr                         
+ * @dev_name: Overrides the default <busnr>-<addr> dev_name if set  
+ * @platform_data: stored in i2c_client.dev.platform_data    
+ * @of_node: pointer to OpenFirmware device node             
+ * @fwnode: device node supplied by the platform firmware    
+ * @properties: additional device properties for the device  
+ * @resources: resources associated with the device          
+ * @num_resources: number of resources in the @resources array 
+ * @irq: stored in i2c_client.irq                            
  *
  * I2C doesn't actually support hardware probing, although controllers and
  * devices may be able to use I2C_SMBUS_QUICK to tell whether or not there's
  * a device at a given address.  Drivers commonly need more information than
  * that, such as chip type, configuration, associated IRQ, and so on.
  *
+ *   I2C实际上不支持硬件探测，尽管控制器和设备可以使用 I2C_SMBUS_QUICK 来判断给定地址是否有设备。
+ *   驱动程序通常需要更多的信息，如芯片类型、配置、相关的IRQ等等。
+ *
  * i2c_board_info is used to build tables of information listing I2C devices
  * that are present.  This information is used to grow the driver model tree.
  * For mainboards this is done statically using i2c_register_board_info();
  * bus numbers identify adapters that aren't yet available.  For add-on boards,
  * i2c_new_device() does this dynamically with the adapter already known.
+ *
+ *   i2c_board_info用于构建列出I2C设备的信息表。此信息用于生成驱动程序模型树。
+ *   对于主板，这是使用i2c_register_board_info()静态完成的;总线号标识尚未可用的适配器。
+ *   对于附加板，i2c_new_device()使用已知的适配器动态执行此操作。
  */
-struct i2c_board_info {
-	char		type[I2C_NAME_SIZE];
-	unsigned short	flags;
-	unsigned short	addr;
-	const char	*dev_name;
-	void		*platform_data;
-	struct device_node *of_node;
-	struct fwnode_handle *fwnode;
-	const struct property_entry *properties;
-	const struct resource *resources;
-	unsigned int	num_resources;
-	int		irq;
+struct i2c_board_info {   //  设备创建模板
+	char		type[I2C_NAME_SIZE];   //  芯片类型，用于初始化 i2c_client.name
+	unsigned short	flags;       //  初始化 i2c_client.flags
+	unsigned short	addr;        //  存储在 i2c_client.addr中
+	const char	*dev_name;       // 如果设置,覆盖默认的<busnr>-<addr>dev_name
+	void		*platform_data;  //  存储在 i2c_client.dev.platform_data中
+	struct device_node *of_node; //  指向OpenFirmware设备节点的指针
+	struct fwnode_handle *fwnode;//  由平台固件提供的设备节点
+	const struct property_entry *properties;  //  设备的附加属性
+	const struct resource *resources;//  与设备相关的资源
+	unsigned int	num_resources;   // resources数组中的资源数量
+	int		irq;                     //  存储在i2c_client.irq中
 };
 
 /**
@@ -714,6 +736,7 @@ struct i2c_adapter {
 
 	struct irq_domain *host_notify_domain;
 };
+// 根据struct device  d,获得外围结构体（ struct i2c_adapter）指针。
 #define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
 
 static inline void *i2c_get_adapdata(const struct i2c_adapter *adap)
@@ -726,6 +749,7 @@ static inline void i2c_set_adapdata(struct i2c_adapter *adap, void *data)
 	dev_set_drvdata(&adap->dev, data);
 }
 
+// 获得适配器（ struct i2c_adapter ）设备的父设备，若也是一个适配器就返回其地址，否则返回NULL。
 static inline struct i2c_adapter *
 i2c_parent_is_i2c_adapter(const struct i2c_adapter *adapter)
 {

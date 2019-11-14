@@ -21,16 +21,18 @@ struct resource {
 	resource_size_t start;
 	resource_size_t end;
 	const char *name;
-	unsigned long flags;
+	unsigned long flags;  // 资源类型标识
 	unsigned long desc;
 	struct resource *parent, *sibling, *child;
 };
 
 /*
- * IO resources have these defined flags.
+ * IO resources have these defined flags.   // IO资源 有这些定义的标志。
  *
  * PCI devices expose these flags to userspace in the "resource" sysfs file,
  * so don't move them.
+ *
+ * PCI设备将这些标志暴露给“资源”sysfs文件中的用户空间，所以不要移动它们。
  */
 #define IORESOURCE_BITS		0x000000ff	/* Bus-specific bits */
 

@@ -155,6 +155,7 @@ int irq_set_chip_data(unsigned int irq, void *data)
 }
 EXPORT_SYMBOL(irq_set_chip_data);
 
+// 根据中断号 irq 获得对应的中断信息数据 struct irq_data。获得返回地址，否则返回NULL.
 struct irq_data *irq_get_irq_data(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
