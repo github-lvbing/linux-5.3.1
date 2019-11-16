@@ -414,9 +414,18 @@ EXPORT_SYMBOL_GPL(of_property_read_string);
  * This function searches a string list property and returns the index
  * of a specific string value.
  */
+/**
+* of_property_match_string() -在列表中查找字符串并返回索引
+* @np:指向包含字符串列表属性的节点的指针
+* @propname:字符串列表属性名
+* @string:指向要在字符串列表中搜索的字符串的指针
+* 该函数搜索字符串列表属性并返回特定字符串值的索引。
+*/
+// 在关联设备树节点np中，属性名为"propname"的字符串列表中搜索"string"字符串。返回索引值。
 int of_property_match_string(const struct device_node *np, const char *propname,
 			     const char *string)
 {
+	// 根据name查找设备节点中的特定资源。
 	const struct property *prop = of_find_property(np, propname, NULL);
 	size_t l;
 	int i;
@@ -431,6 +440,8 @@ int of_property_match_string(const struct device_node *np, const char *propname,
 	end = p + prop->length;
 
 	for (i = 0; p < end; i++, p += l) {
+		// 获取字符串p中实际字符个数，不包括结尾的'\0'；
+		// 如果实际个数 <= maxlen，则返回n，否则返回第二个参数。
 		l = strnlen(p, end - p) + 1;
 		if (p + l > end)
 			return -EILSEQ;

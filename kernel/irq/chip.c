@@ -38,6 +38,11 @@ struct irqaction chained_action = {
  *	@irq:	irq number
  *	@chip:	pointer to irq chip description structure
  */
+/**
+* irq_set_chip -为irq设置irq芯片
+* @irq: irq号码
+* @chip:指向irq芯片描述结构的指针
+*/
 int irq_set_chip(unsigned int irq, struct irq_chip *chip)
 {
 	unsigned long flags;
@@ -536,6 +541,12 @@ static bool irq_may_run(struct irq_desc *desc)
  *	Note: The caller is expected to handle the ack, clear, mask and
  *	unmask issues if necessary.
  */
+/**
+* handle_simple_irq -简单和软件解码的irq。
+* @desc:这个irq简单中断的中断描述结构是由一个多路复用中断处理器发送的，
+        或者来自硬件，在硬件上不需要中断控制。
+* 注意:调用者需要处理ack、clear、mask和unmask问题。
+*/
 void handle_simple_irq(struct irq_desc *desc)
 {
 	raw_spin_lock(&desc->lock);

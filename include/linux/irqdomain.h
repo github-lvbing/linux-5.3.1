@@ -100,6 +100,15 @@ enum irq_domain_bus_token {
  * whatever internal data structures management is required. It also needs
  * to setup the irq_desc when returning from map().
  */
+/**
+* struct irq_domain_ops——irq_domain对象的方法
+* @match:将中断控制器设备节点与主机匹配，匹配时返回1
+* @map:创建或更新虚拟irq号和hw irq号之间的映射。对于给定的映射只调用一次。
+* @unmap:处理这样的映射
+* @xlate:给定一个设备树节点和中断说明符，解码硬件irq号和linux irq类型值。
+* 下面的函数是由驱动程序提供的，在创建新映射或处理旧映射时调用。
+* 然后，驱动程序可以继续执行所需的任何内部数据结构管理。它还需要在从map()返回时设置irq_desc。
+*/
 struct irq_domain_ops {
 	int (*match)(struct irq_domain *d, struct device_node *node,
 		     enum irq_domain_bus_token bus_token);
@@ -157,6 +166,26 @@ struct irq_domain_chip_generic;
  * @revmap_tree: Radix map tree for hwirqs that don't fit in the linear map
  * @linear_revmap: Linear table of hwirq->virq reverse mappings
  */
+/**
+ * struct irq_domain -硬件中断号转换对象
+ * @link:全局irq_domain列表中的元素。
+ * @name:中断域的名称
+ * @ops:指向irq_domain方法的指针
+ * @host_data:供所有者使用的私有数据指针。irq_domain核心代码没有涉及。
+ * @flags:每个irq_domain标志的主机
+ * @mapcount:映射中断的数量。
+ * 可选元素
+ * @fwnode:指向与irq_domain关联的固件节点的指针。
+ *     很容易通过irq_domain_get_of_node访问器将其替换为of_node指向通用芯片列表的指针。
+ *     有一个帮助函数，用于设置一个或多个通用芯片中断控制器驱动程序使用通用芯片库使用这个指针。
+ * @parent:指向父irq_domain以支持irq_domains层次结构的指针
+ * @debugfs_file: dentry用于域debugfs文件
+ * Revmap数据，由irq_domain内部使用
+ * @revmap_direct_max_irq:可以为支持直接映射的控制器设置的最大hwirq
+ * @revmap_size:线性映射表的大小@linear_revmap[]
+ * @revmap_tree:不适合线性映射的hwirq的基数映射树
+ * @linear_revmap: hwirq->virq反向映射的线性表
+ */
 struct irq_domain {
 	struct list_head link;
 	const char *name;
@@ -177,6 +206,7 @@ struct irq_domain {
 #endif
 
 	/* reverse map data. The linear map gets appended to the irq_domain */
+	// 反向映射数据。线性映射被附加到irq_domain
 	irq_hw_number_t hwirq_max;
 	unsigned int revmap_direct_max_irq;
 	unsigned int revmap_size;
@@ -350,6 +380,14 @@ static inline struct irq_domain *irq_domain_add_tree(struct device_node *of_node
 	return __irq_domain_add(of_node_to_fwnode(of_node), 0, ~0, 0, ops, host_data);
 }
 
+/*
+分配一个新的irq_domain数据结构
+* 中断控制器的固件节点=fwnode
+* 线性映射的大小;仅用于基数映射 = 控制器支持的最大中断数=size
+* 直接映射的最大值=0
+* 域回调=ops
+* 控制器私有数据指针=host_data
+*/
 static inline struct irq_domain *irq_domain_create_linear(struct fwnode_handle *fwnode,
 					 unsigned int size,
 					 const struct irq_domain_ops *ops,

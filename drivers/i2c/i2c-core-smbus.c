@@ -685,6 +685,21 @@ EXPORT_SYMBOL(i2c_smbus_read_i2c_block_data_or_emulated);
  * i2c_handle_smbus_alert() and ultimately i2c_unregister_device(); or NULL
  * to indicate an error.
  */
+/**
+ * i2c_setup_smbus_alert -设置SMBus警报支持
+ * @adapter:目标适配器
+ * @setup:为SMBus警报处理程序设置数据
+ * 上下文:可以睡觉
+ *
+ * 在给定的I2C总线段上设置SMBus警报协议的处理。
+ *
+ * 处理可以通过我们的IRQ处理程序来完成，也可以通过适配器来完成(从它的处理程序，定期轮询，或者其他方式)。
+ *
+ * 注意，如果我们管理IRQ，我们*必须*知道它是被触发的级别还是边缘，以便正确地将它提交到工作队列。
+ * 如果触发警报似乎会破坏系统，你可能应该说它已经触发了级别。
+ *
+ * 这将返回ara客户端，该客户端应该保存起来，以便稍后与i2c_handle_smbus_alert()和i2c_unregister_device()一起使用;或NULL表示错误。
+ */
 struct i2c_client *i2c_setup_smbus_alert(struct i2c_adapter *adapter,
 					 struct i2c_smbus_alert_setup *setup)
 {
@@ -702,7 +717,8 @@ int of_i2c_setup_smbus_alert(struct i2c_adapter *adapter)
 {
 	struct i2c_client *client;
 	int irq;
-
+	
+	// 在关联设备树节点中，属性名为"interrupt-names"的字符串列表中搜索"smbus_alert"字符串。返回索引。
 	irq = of_property_match_string(adapter->dev.of_node, "interrupt-names",
 				       "smbus_alert");
 	if (irq == -EINVAL || irq == -ENODATA)
@@ -710,6 +726,7 @@ int of_i2c_setup_smbus_alert(struct i2c_adapter *adapter)
 	else if (irq < 0)
 		return irq;
 
+	// 设置SMBus警报支持
 	client = i2c_setup_smbus_alert(adapter, NULL);
 	if (!client)
 		return -ENODEV;

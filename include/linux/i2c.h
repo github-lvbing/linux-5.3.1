@@ -250,19 +250,44 @@ enum i2c_alert_protocol {
  * else with it. In particular, calling dev_dbg and friends on it is
  * not allowed.
  */
+ /**
+ * struct i2c_driver—表示一个I2C设备驱动程序
+ * @class:我们实例化什么样的i2c设备(用于检测)
+ * @probe:设备绑定的回调——不久将被弃用
+ * @probe_new:设备绑定的新回调
+ * @remove:设备解除绑定的回调
+ * @shutdown:设备关闭回调
+ * @alert:警报回调，例如用于SMBus警报协议
+ * @command:总线范围的回调信号(可选)
+ * @driver:设备驱动程序模型驱动程序
+ * @id_table:该驱动程序支持的I2C设备列表
+ * @detect:设备检测回调
+ * @address_list:要探测的I2C地址(用于检测)
+ * @clients:我们创建的检测到的客户端列表(仅用于i2c-core)
+ * @disable_i2c_core_irq_mapping:告诉i2c-core不要做irq-mapping
+ *
+ * 驱动应将owner字段设置为此驱动程序的模块所有者。
+ * name字段应该设置为这个驱动程序的名称。
+ * 对于自动设备检测，必须定义@detect和@address_list。还应该设置@class，否则只创建带有模块参数的设备。
+ * 检测函数必须至少填充它在成功检测时传递的i2c_board_info结构的name字段，也可能填充flags字段。
+ *
+ * 如果没有@detect，驱动程序仍然可以在枚举的设备中正常工作。检测到的设备将不受支持。这对于许多不能可靠地检测到的I2C/SMBus设备以及在实践中总是可以枚举的那些设备来说是期望的。
+ * 传递给@detect回调的i2c_client结构不是真正的i2c_client。它的初始化程度刚刚好，因此可以在上面调用i2c_smbus_read_byte_data和friends。不要用它做其他任何事。特别是，不允许在上面调用dev_dbg和好友。
+ */
 struct i2c_driver {
-	unsigned int class;
+	unsigned int class;  // such as struct i2c_adapter class成员.eg: I2C_CLASS_DDC
 
-	/* Standard driver model interfaces */
+	/* Standard driver model interfaces */  //标准驱动程序模型接口
 	int (*probe)(struct i2c_client *client, const struct i2c_device_id *id);
 	int (*remove)(struct i2c_client *client);
 
 	/* New driver model interface to aid the seamless removal of the
 	 * current probe()'s, more commonly unused than used second parameter.
-	 */
+	 */ // 新的驱动程序模型接口，以帮助无缝删除当前探测器()的，通常不使用比使用的第二个参数。
 	int (*probe_new)(struct i2c_client *client);
 
 	/* driver model interfaces that don't relate to enumeration  */
+	// 与枚举无关的驱动程序模型接口
 	void (*shutdown)(struct i2c_client *client);
 
 	/* Alert callback, for example for the SMBus alert protocol.
@@ -272,21 +297,26 @@ struct i2c_driver {
 	 * For the SMBus Host Notify protocol, the data corresponds to the
 	 * 16-bit payload data reported by the slave device acting as master.
 	 */
+	// 警报回调，例如用于SMBus警报协议。数据值的格式和含义取决于协议。
+	// 对于SMBus警报协议，有一个单一位的数据作为警报响应的低位(“事件标志”)传递。
+	// 对于SMBus主机通知协议，数据对应于从设备作为主设备报告的16位有效载荷数据。
 	void (*alert)(struct i2c_client *client, enum i2c_alert_protocol protocol,
 		      unsigned int data);
 
 	/* a ioctl like command that can be used to perform specific functions
 	 * with the device.
 	 */
+	// 类似ioctl的命令，可用于执行设备的特定功能
 	int (*command)(struct i2c_client *client, unsigned int cmd, void *arg);
 
 	struct device_driver driver;
 	const struct i2c_device_id *id_table;
 
 	/* Device detection callback for automatic device creation */
+	// 用于自动设备创建的设备检测回调
 	int (*detect)(struct i2c_client *client, struct i2c_board_info *info);
-	const unsigned short *address_list;
-	struct list_head clients;
+	const unsigned short *address_list;  // 要探测的I2C地址(用于检测),被上面的api detect()使用。I2C_CLIENT_END结尾。
+	struct list_head clients;  // 链表，用于管理本驱动的i2c设备。
 
 	bool disable_i2c_core_irq_mapping;
 };
@@ -318,7 +348,7 @@ struct i2c_driver {
  * @adapter:管理承载这个I2C设备的总线段
  * @dev:驱动程序模型设备节点的奴隶。
  * @irq:表示该设备产生的IRQ(如果有的话)
- * @detect: i2c_driver的成员。客户列表或i2c-core的userspace_devices列表
+ * @detect: i2c_driver的成员。clients list或i2c-core的userspace_devices列表
  * @slave_cb:使用适配器的I2C从属模式时的回调。适配器调用它来将从事件传递给从驱动程序。
  *
  * i2c_client标识连接到i2c总线的单个设备(即芯片)。暴露给Linux的行为是由管理设备的驱动程序定义的。
@@ -332,7 +362,7 @@ struct i2c_client {
 					/* Must equal I2C_M_TEN below */
 #define I2C_CLIENT_SLAVE	0x20	/* we are the slave */                    // 我们是从设备
 #define I2C_CLIENT_HOST_NOTIFY	0x40	/* We want to use I2C host notify */  // 我们想使用I2C主机notify
-#define I2C_CLIENT_WAKE		0x80	/* for board_info; true iff can wake */   // board_info;真正的iff可以醒来
+#define I2C_CLIENT_WAKE		0x80	/* for board_info; true iff can wake */   // board_info;若可以醒来为true
 #define I2C_CLIENT_SCCB		0x9000	/* Use Omnivision SCCB protocol */        // 使用全景SCCB协议
 					/* Must match I2C_M_STOP|IGNORE_NAK */
 
@@ -344,7 +374,7 @@ struct i2c_client {
 	struct device dev;		/* the device structure		*/              // 设备结构
 	int init_irq;			/* irq set at initialization	*/          // 初始化时设置irq
 	int irq;			/* irq issued by device		*/                  // 由设备发出的irq
-	struct list_head detected;
+	struct list_head detected;  // 它依附设备驱动，用于被struct i2c_driver 探测和管理支持和驱动。
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 	i2c_slave_cb_t slave_cb;	/* callback for slave mode	*/          // 从模式回调
 #endif
@@ -432,7 +462,7 @@ static inline bool i2c_detect_slave_mode(struct device *dev) { return false; }
  */
 struct i2c_board_info {   //  设备创建模板
 	char		type[I2C_NAME_SIZE];   //  芯片类型，用于初始化 i2c_client.name
-	unsigned short	flags;       //  初始化 i2c_client.flags
+	unsigned short	flags;       //  初始化 i2c_client.flags, val eg I2C_CLIENT_TEN
 	unsigned short	addr;        //  存储在 i2c_client.addr中
 	const char	*dev_name;       // 如果设置,覆盖默认的<busnr>-<addr>dev_name
 	void		*platform_data;  //  存储在 i2c_client.dev.platform_data中
@@ -547,6 +577,21 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
  * type of error code that occurred during the transfer, as documented in the
  * Kernel Documentation file Documentation/i2c/fault-codes.
  */
+/*
+/**
+* struct i2c_algorithm—表示I2C传输方法
+* @master_xfer:向msgs数组定义的给定i2c适配器发出一组i2c事务，其中num消息可通过adap指定的适配器进行传输。
+* @master_xfer_atomic:与@master_xfer相同。然而，只有使用原子上下文，例如PMICs，才能在关机前很晚访问。可选的。
+* @smbus_xfer:向给定的I2C适配器发出smbus事务。如果不存在这种情况，则总线层将尝试将SMBus调用转换为I2C传输。
+* @smbus_xfer_atomic:与@smbus_xfer相同。然而，只有使用原子上下文，例如PMICs，才能在关机前很晚访问。可选的。
+* @ functions:从I2C_FUNC_*标志返回该算法/适配器对支持的标志。
+* @reg_slave:将客户端注册到该适配器的I2C从模式
+* @unreg_slave:从这个适配器的I2C从属模式中注销给定的客户端
+*
+* 以下结构是为那些喜欢实现新的总线驱动程序:i2c_algorithm是一类硬件解决方案的接口，可以使用相同的总线算法来解决，即位敲或PCF8584，说出两个最常见的。
+*
+* 来自@master_xfer{_atomic}字段的返回代码应该指示在传输过程中发生的错误代码类型，如内核文档文件Documentation/i2c/fault-codes中记录的那样。
+*/
 struct i2c_algorithm {
 	/*
 	 * If an adapter algorithm can't do I2C-level access, set master_xfer
@@ -557,6 +602,11 @@ struct i2c_algorithm {
 	 * master_xfer should return the number of messages successfully
 	 * processed, or a negative value on error
 	 */
+	/*
+     * 如果适配器算法不能进行i2c级访问，则将master_xfer设置为NULL。
+     * 如果适配器算法可以进行SMBus访问，则设置smbus_xfer。如果设置为NULL，则使用公共I2C消息模拟SMBus协议。
+     * master_xfer应该返回成功处理的消息数量，或者错误时返回一个负值
+     */
 	int (*master_xfer)(struct i2c_adapter *adap, struct i2c_msg *msgs,
 			   int num);
 	int (*master_xfer_atomic)(struct i2c_adapter *adap,
@@ -569,6 +619,7 @@ struct i2c_algorithm {
 				 u8 command, int size, union i2c_smbus_data *data);
 
 	/* To determine what the adapter supports */
+    // 以确定适配器支持什么
 	u32 (*functionality)(struct i2c_adapter *adap);
 
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
@@ -585,6 +636,14 @@ struct i2c_algorithm {
  *
  * The main operations are wrapped by i2c_lock_bus and i2c_unlock_bus.
  */
+/**
+ * struct i2c_lock_operations—表示I2C锁定操作
+ * @lock_bus:获得对I2C总线段的独占访问
+ * @trylock_bus:尝试获得对I2C总线段的独占访问
+ * @unlock_bus:释放对I2C总线段的独占访问
+ *
+ * 主操作由i2c_lock_bus和i2c_unlock_bus封装。
+ */
 struct i2c_lock_operations {
 	void (*lock_bus)(struct i2c_adapter *adapter, unsigned int flags);
 	int (*trylock_bus)(struct i2c_adapter *adapter, unsigned int flags);
@@ -600,13 +659,13 @@ struct i2c_lock_operations {
  * @sda_fall_ns: time SDA signal takes to fall in ns; t(f) in the I2C specification
  * @sda_hold_ns: time IP core additionally needs to hold SDA in ns
  */
-struct i2c_timings {
-	u32 bus_freq_hz;
-	u32 scl_rise_ns;
-	u32 scl_fall_ns;
-	u32 scl_int_delay_ns;
-	u32 sda_fall_ns;
-	u32 sda_hold_ns;
+struct i2c_timings {  // I2C计时信息
+	u32 bus_freq_hz;  // 总线频率，单位为Hz
+	u32 scl_rise_ns;  // SCL信号在ns中上升的时间;I2C规范中的t(r
+	u32 scl_fall_ns;  // SCL信号在ns中下降的时间;I2C规范中的t(f
+	u32 scl_int_delay_ns; // 时间IP核额外需要在ns设置SCL
+	u32 sda_fall_ns;  // SDA信号落入ns的时间;I2C规范中的t(f
+	u32 sda_hold_ns;  // 时间IP核额外需要持有SDA在ns
 };
 
 /**
@@ -632,6 +691,19 @@ struct i2c_timings {
  * @scl_gpiod: gpiod of the SCL line. Only required for GPIO recovery.
  * @sda_gpiod: gpiod of the SDA line. Only required for GPIO recovery.
  */
+/**
+* struct i2c_bus_recovery_info - I2C总线恢复信息
+* @recover_bus:恢复例程。传递驱动程序的recover_bus()例程，或者i2c_generic_scl_recovery()。
+* @get_scl:获取SCL行的当前值。强制通用SCL恢复。内部填充用于通用GPIO恢复。
+* @set_scl:设置/清除SCL行。强制通用SCL恢复。内部填充用于通用GPIO恢复。
+* @get_sda:获取SDA行的当前值。对于通用SCL恢复，这个或set_sda()是必需的。如果sda_gpio是有效的GPIO，则在内部填充，用于通用GPIO恢复。
+* @set_sda:设置/清除SDA行。这个或get_sda()对于通用SCL恢复是必需的。如果sda_gpio是有效的GPIO，则在内部填充，用于通用GPIO恢复。
+* @get_bus_free:返回从IP核看到的总线空闲状态，以防它具有比读取SDA更复杂的内部逻辑。可选的。
+* @prepare_recovery:这将在开始恢复之前调用。平台可以在这里为SDA/SCL线或其他他们想要的东西配置padmux。
+* @unprepare_recovery:这将在完成恢复后调用。平台可以在这里为SDA/SCL线或其他他们想要的东西配置padmux。
+* @scl_gpiod: SCL线的gpiod。只需要GPIO恢复。
+* @sda_gpiod: SDA线路的gpiod。只需要GPIO恢复。
+*/	
 struct i2c_bus_recovery_info {
 	int (*recover_bus)(struct i2c_adapter *adap);
 
@@ -706,25 +778,29 @@ struct i2c_adapter_quirks {
  * i2c_adapter is the structure used to identify a physical i2c bus along
  * with the access algorithms necessary to access it.
  */
+/*
+i2c_adapter是用来识别物理i2c总线的结构，以及访问它所需的访问算法。
+*/
 struct i2c_adapter {
 	struct module *owner;
-	unsigned int class;		  /* classes to allow probing for */
-	const struct i2c_algorithm *algo; /* the algorithm to access the bus */
+	unsigned int class;		  /* classes to allow probing for */  // 允许探测的类,eg: I2C_CLASS_DDC
+	const struct i2c_algorithm *algo; /* the algorithm to access the bus */ // 访问总线的算法
 	void *algo_data;
 
 	/* data fields that are valid for all devices	*/
-	const struct i2c_lock_operations *lock_ops;
+	// 对所有设备都有效的数据字段
+	const struct i2c_lock_operations *lock_ops; // 表示I2C锁定操作
 	struct rt_mutex bus_lock;
 	struct rt_mutex mux_lock;
 
 	int timeout;			/* in jiffies */
 	int retries;
-	struct device dev;		/* the adapter device */
-	unsigned long locked_flags;	/* owned by the I2C core */
+	struct device dev;		/* the adapter device */  //适配器设备
+	unsigned long locked_flags;	/* owned by the I2C core */ // 属于I2C核心
 #define I2C_ALF_IS_SUSPENDED		0
 #define I2C_ALF_SUSPEND_REPORTED	1
 
-	int nr;
+	int nr;   // 被分配的adapter bus号。特定适配器的适配器号
 	char name[48];
 	struct completion dev_released;
 
@@ -736,7 +812,7 @@ struct i2c_adapter {
 
 	struct irq_domain *host_notify_domain;
 };
-// 根据struct device  d,获得外围结构体（ struct i2c_adapter）指针。
+// 根据struct device类型的 d,获得其外围结构体（ struct i2c_adapter）指针。
 #define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
 
 static inline void *i2c_get_adapdata(const struct i2c_adapter *adap)
@@ -840,14 +916,14 @@ static inline void i2c_mark_adapter_resumed(struct i2c_adapter *adap)
 }
 
 /* i2c adapter classes (bitmask) */
-#define I2C_CLASS_HWMON		(1<<0)	/* lm_sensors, ... */
-#define I2C_CLASS_DDC		(1<<3)	/* DDC bus on graphics adapters */
-#define I2C_CLASS_SPD		(1<<7)	/* Memory modules */
+#define I2C_CLASS_HWMON		(1<<0)	/* lm_sensors, ... */  // 传感器
+#define I2C_CLASS_DDC		(1<<3)	/* DDC bus on graphics adapters */ // 图形适配器上的DDC总线
+#define I2C_CLASS_SPD		(1<<7)	/* Memory modules */  // 内存模块
 /* Warn users that the adapter doesn't support classes anymore */
-#define I2C_CLASS_DEPRECATED	(1<<8)
+#define I2C_CLASS_DEPRECATED	(1<<8)  // 警告用户适配器不再支持类
 
 /* Internal numbers to terminate lists */
-#define I2C_CLIENT_END		0xfffeU
+#define I2C_CLIENT_END		0xfffeU    // 终止列表的内部号码
 
 /* Construct an I2C_CLIENT_END-terminated array of i2c addresses */
 #define I2C_ADDRS(addr, addrs...) \
@@ -885,12 +961,14 @@ extern unsigned int i2c_adapter_depth(struct i2c_adapter *adapter);
 void i2c_parse_fw_timings(struct device *dev, struct i2c_timings *t, bool use_defaults);
 
 /* Return the functionality mask */
+// 返回功能掩码
 static inline u32 i2c_get_functionality(struct i2c_adapter *adap)
 {
 	return adap->algo->functionality(adap);
 }
 
 /* Return 1 if adapter supports everything we need, 0 if not. */
+// 如果适配器支持我们需要的所有内容，则返回1;如果不支持，则返回0。
 static inline int i2c_check_functionality(struct i2c_adapter *adap, u32 func)
 {
 	return (func & i2c_get_functionality(adap)) == func;
@@ -911,6 +989,7 @@ static inline bool i2c_check_quirks(struct i2c_adapter *adap, u64 quirks)
 }
 
 /* Return the adapter number for a specific adapter */
+// 返回特定适配器的适配器号
 static inline int i2c_adapter_id(struct i2c_adapter *adap)
 {
 	return adap->nr;

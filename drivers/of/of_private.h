@@ -19,8 +19,17 @@
  * The structure represents one alias property of 'aliases' node as
  * an entry in aliases_lookup list.
  */
+/**	
+ * struct alias_prop - aliases节点中的别名属性	
+ * @link:列表节点，用于链接aliases_lookup列表中的结构	
+   @alias:别名属性名	
+ * @np:指向别名所代表的device_node的指针	
+ * @id:别名末尾的索引值
+ * @stem:没有索引的别名字符串	
+ * 该结构将'aliases'节点的一个别名属性表示为aliases_lookup列表中的一个条目。
+ */
 struct alias_prop {
-	struct list_head link;
+	struct list_head link;  // 被全局变量 struct list_head aliases_lookup管理。
 	const char *alias;
 	struct device_node *np;
 	int id;

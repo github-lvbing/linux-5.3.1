@@ -19,6 +19,7 @@
 
 #include "i2c-core.h"
 
+// 使用struct device_node 提供的信息对i2c_board_info 实例化。
 int of_i2c_get_board_info(struct device *dev, struct device_node *node,
 			  struct i2c_board_info *info)
 {
@@ -31,18 +32,19 @@ int of_i2c_get_board_info(struct device *dev, struct device_node *node,
 		dev_err(dev, "of_i2c: modalias failure on %pOF\n", node);
 		return -EINVAL;
 	}
-
+	// 读取node的"reg"的属性值到 addr，读取不到就推出。
 	ret = of_property_read_u32(node, "reg", &addr);
 	if (ret) {
 		dev_err(dev, "of_i2c: invalid reg on %pOF\n", node);
 		return ret;
 	}
 
+	// 如果标识是10bit add.
 	if (addr & I2C_TEN_BIT_ADDRESS) {
 		addr &= ~I2C_TEN_BIT_ADDRESS;
 		info->flags |= I2C_CLIENT_TEN;
 	}
-
+	// 如果标识自己是从设备地址
 	if (addr & I2C_OWN_SLAVE_ADDRESS) {
 		addr &= ~I2C_OWN_SLAVE_ADDRESS;
 		info->flags |= I2C_CLIENT_SLAVE;
@@ -50,10 +52,10 @@ int of_i2c_get_board_info(struct device *dev, struct device_node *node,
 
 	info->addr = addr;
 	info->of_node = node;
-
+	// 查找属性"host-notify",想使用I2C主机notify.
 	if (of_property_read_bool(node, "host-notify"))
 		info->flags |= I2C_CLIENT_HOST_NOTIFY;
-
+	// 查找属性"wakeup-source,若可以醒来.
 	if (of_get_property(node, "wakeup-source", NULL))
 		info->flags |= I2C_CLIENT_WAKE;
 
@@ -61,6 +63,7 @@ int of_i2c_get_board_info(struct device *dev, struct device_node *node,
 }
 EXPORT_SYMBOL_GPL(of_i2c_get_board_info);
 
+// 通过 device_node 实例化一个i2c设备，依附适配器adap后并注册到i2c总线。
 static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 						 struct device_node *node)
 {
@@ -70,10 +73,12 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 
 	dev_dbg(&adap->dev, "of_i2c: register %pOF\n", node);
 
+	// 使用struct device_node 提供的信息对i2c_board_info 实例化。
 	ret = of_i2c_get_board_info(&adap->dev, node, &info);
 	if (ret)
 		return ERR_PTR(ret);
 
+	// 实例化一个i2c设备，依附适配器adap后并注册到i2c总线。
 	client = i2c_new_device(adap, &info);
 	if (!client) {
 		dev_err(&adap->dev, "of_i2c: Failure registering %pOF\n", node);
@@ -82,25 +87,29 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 	return client;
 }
 
+// 创建本适配器上预先声明的未实例化的设备节点。实例化为i2c设备(i2c_client)并注册。
 void of_i2c_register_devices(struct i2c_adapter *adap)
 {
 	struct device_node *bus, *node;
 	struct i2c_client *client;
 
 	/* Only register child devices if the adapter has a node pointer set */
+	// 如果适配器有节点指针集，则只注册子设备
 	if (!adap->dev.of_node)
 		return;
 
 	dev_dbg(&adap->dev, "of_i2c: walking child nodes\n");
 
+	// 根据给定父节点的名称"i2c-bus"查找子节点,
 	bus = of_get_child_by_name(adap->dev.of_node, "i2c-bus");
 	if (!bus)
 		bus = of_node_get(adap->dev.of_node);
-
+	// 遍历获得其可用的（使能）的子节点。
 	for_each_available_child_of_node(bus, node) {
+		// 若设备已经创建，就continue
 		if (of_node_test_and_set_flag(node, OF_POPULATED))
 			continue;
-
+		// 若设备设备未创建, 通过 device_node 实例化一个i2c设备，依附适配器adap后并注册到i2c总线。
 		client = of_i2c_register_device(adap, node);
 		if (IS_ERR(client)) {
 			dev_err(&adap->dev,

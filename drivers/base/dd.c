@@ -502,6 +502,8 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 		 * device_block_probing() which, in turn, will call
 		 * wait_for_device_probe() right after that to avoid any races.
 		 */
+		// 只有device_block_probe()才能设置defer_all_probes的值，
+		// 而device_block_probe()会在设置完成后立即调用wait_for_device_probe()来避免竞争。
 		dev_dbg(dev, "Driver %s force probe deferral\n", drv->name);
 		driver_deferred_probe_add(dev);
 		return ret;
@@ -522,6 +524,7 @@ re_probe:
 	dev->driver = drv;
 
 	/* If using pinctrl, bind pins now before probing */
+	// 如果使用pinctrl，请在探测前绑定 pin
 	ret = pinctrl_bind_pins(dev);
 	if (ret)
 		goto pinctrl_bind_failed;
@@ -631,6 +634,7 @@ done:
 /*
  * For initcall_debug, show the driver probe time.
  */
+// 对于initcall_debug，显示驱动程序探测时间
 static int really_probe_debug(struct device *dev, struct device_driver *drv)
 {
 	ktime_t calltime, delta, rettime;
@@ -688,10 +692,18 @@ EXPORT_SYMBOL_GPL(wait_for_device_probe);
  *
  * If the device has a parent, runtime-resume the parent before driver probing.
  */
+/**
+* driver_probe_device -尝试绑定设备和驱动程序在一起
+* @drv:绑定设备的驱动程序
+* @dev:试图绑定到驱动程序的设备
+* 如果设备没有注册，这个函数返回-ENODEV;如果设备绑定成功，返回1;如果绑定失败，返回0。
+* 必须在持有@dev锁的情况下调用此函数。当调用USB接口时，@dev->父锁也必须被持有。
+* 如果设备有一个父设备，在驱动程序探测之前，运行时-恢复父设备。
+*/
 int driver_probe_device(struct device_driver *drv, struct device *dev)
 {
 	int ret = 0;
-
+	// 不注册不允许绑定。
 	if (!device_is_registered(dev))
 		return -ENODEV;
 
@@ -918,6 +930,13 @@ out_unlock:
  *
  * When called for a USB interface, @dev->parent lock must be held.
  */
+/**
+* device_attach -尝试将设备附加到驱动程序。
+* @dev:设备。
+* 遍历总线拥有的驱动程序列表，并为每一对调用driver_probe_device()。如果找到了匹配的一对，则断开并返回。
+* 如果设备绑定到驱动程序，则返回1;0如果没有找到匹配的驱动程序;-ENODEV如果设备没有注册。
+* 当调用USB接口时，必须持有@dev->父锁。
+*/
 int device_attach(struct device *dev)
 {
 	return __device_attach(dev, false);
@@ -969,6 +988,12 @@ static void __device_driver_unlock(struct device *dev, struct device *parent)
  * Manually attach driver to a device. Will acquire both @dev lock and
  * @dev->parent lock if needed.
  */
+/**
+将一个特定的驱动程序附加到一个特定的设备上
+* @drv:附加驱动程序
+* @dev:连接它的设备
+* 手动将驱动程序附加到设备上。将获得@dev锁和@dev->父锁，如果需要的话。
+*/
 int device_driver_attach(struct device_driver *drv, struct device *dev)
 {
 	int ret = 0;
@@ -979,6 +1004,7 @@ int device_driver_attach(struct device_driver *drv, struct device *dev)
 	 * If device has been removed or someone has already successfully
 	 * bound a driver before us just skip the driver probe call.
 	 */
+	// 如果设备已经被删除，或者在我们之前已经有人成功绑定了驱动程序，那么就跳过驱动程序探测调用。
 	if (!dev->p->dead && !dev->driver)
 		ret = driver_probe_device(drv, dev);
 
@@ -1025,7 +1051,12 @@ static int __driver_attach(struct device *dev, void *data)
 	 * driver_probe_device() will spit a warning if there
 	 * is an error.
 	 */
-
+	/*
+	 * 锁定设备并试图绑定到它。我们在这里删除错误并总是返回0，
+	 * 因为我们需要一直尝试绑定到设备，一些驱动程序如果它不支持设备将返回一个简单的错误，
+	 * driver_probe_device()将吐出一个警告，如果有一个错误。
+	 */
+	// 使用bus上的匹配原则进行匹配，合适返回1,否则返回0.
 	ret = driver_match_device(drv, dev);
 	if (ret == 0) {
 		/* no match */
@@ -1057,6 +1088,7 @@ static int __driver_attach(struct device *dev, void *data)
 		return 0;
 	}
 
+	// 将一个特定的驱动程序附加到一个特定的设备上
 	device_driver_attach(drv, dev);
 
 	return 0;
@@ -1071,6 +1103,12 @@ static int __driver_attach(struct device *dev, void *data)
  * returns 0 and the @dev->driver is set, we've found a
  * compatible pair.
  */
+/**
+* driver_attach -尝试绑定驱动到设备。
+* @drv:司机。
+* 遍历总线上的设备列表，并将每个设备与驱动程序匹配。
+* 如果driver_probe_device()返回0，并且设置了@dev->驱动程序，我们就找到了一个兼容的对。
+*/
 int driver_attach(struct device_driver *drv)
 {
 	return bus_for_each_dev(drv->bus, NULL, drv, __driver_attach);
@@ -1081,6 +1119,10 @@ EXPORT_SYMBOL_GPL(driver_attach);
  * __device_release_driver() must be called with @dev lock held.
  * When called for a USB interface, @dev->parent lock must be held as well.
  */
+/*	
+* 必须在持有@dev锁的情况下调用_device_release_driver()。
+* 当调用USB接口时，@dev->父锁也必须被持有。
+*/
 static void __device_release_driver(struct device *dev, struct device *parent)
 {
 	struct device_driver *drv;
@@ -1164,6 +1206,13 @@ void device_release_driver_internal(struct device *dev,
  * the device's consumers are unbound in advance or that their locks can be
  * acquired under the @dev->parent lock.
  */
+/**
+* device_release_driver -手动从驱动程序中分离设备。
+* @dev:设备。
+* 手动从驱动程序中分离设备。当调用USB接口时，必须持有@dev->父锁。
+* 如果要在持有@dev->父锁的情况下调用此函数，请确保提前解除设备使用者的绑定，
+* 或者可以在@dev->父锁下获取他们的锁。
+*/
 void device_release_driver(struct device *dev)
 {
 	/*
@@ -1182,6 +1231,11 @@ EXPORT_SYMBOL_GPL(device_release_driver);
  * Detach driver from device. Will acquire both @dev lock and @dev->parent
  * lock if needed.
  */
+/**
+* device_driver_detach—从特定设备中分离驱动程序
+* @dev:从设备中分离驱动程序
+* 将驱动程序与设备分离。将获得@dev锁和@dev->父锁，如果需要的话。
+*/
 void device_driver_detach(struct device *dev)
 {
 	device_release_driver_internal(dev, NULL, dev->parent);
@@ -1191,6 +1245,10 @@ void device_driver_detach(struct device *dev)
  * driver_detach - detach driver from all devices it controls.
  * @drv: driver.
  */
+/**
+* driver_detach -将驱动程序从它控制的所有设备中分离出来。	
+* @drv:driver。
+*/
 void driver_detach(struct device_driver *drv)
 {
 	struct device_private *dev_prv;

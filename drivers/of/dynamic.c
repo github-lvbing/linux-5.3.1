@@ -29,6 +29,11 @@ static struct device_node *kobj_to_device_node(struct kobject *kobj)
  *
  * Returns node.
  */
+/**
+* of_node_get() -增加节点的refcount
+* @node: node to inc refcount，支持NULL，以简化调用者的写入
+* 返回节点。
+*/
 struct device_node *of_node_get(struct device_node *node)
 {
 	if (node)
@@ -42,6 +47,10 @@ EXPORT_SYMBOL(of_node_get);
  * @node:	Node to dec refcount, NULL is supported to simplify writing of
  *		callers
  */
+/**
+* of_node_put()—节点的递减计数
+* @node: node to dec refcount，支持NULL，以简化调用者的写入
+*/
 void of_node_put(struct device_node *node)
 {
 	if (node)

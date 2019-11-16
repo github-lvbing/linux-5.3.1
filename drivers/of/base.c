@@ -254,8 +254,8 @@ void __init of_core_init(void)
 		proc_symlink("device-tree", NULL, "/sys/firmware/devicetree/base");
 }
 
-// 检查 device_node 节点（对应设备树中的节点）中资源链表struct	property（对应设备树中的节点的键值对）中 哪个链表节点的name成员是否等于name。
-// 是返回struct	property 指针，并返回struct	property 的成员length的值到lenp。
+// 根据name查找设备节点中的特定资源。
+// 被of_find_property（）使用.
 static struct property *__of_find_property(const struct device_node *np,
 					   const char *name, int *lenp)
 {
@@ -275,6 +275,9 @@ static struct property *__of_find_property(const struct device_node *np,
 	return pp;
 }
 
+// 根据name查找设备节点中的特定资源。
+// 检查 device_node 节点（对应设备树中的节点）中资源链表struct  property（对应设备树中的节点的键值对）中 哪个链表节点的name成员是否等于name。
+// 是返回struct  property 指针，并返回struct property 的成员length的值到lenp。
 struct property *of_find_property(const struct device_node *np,
 				  const char *name,
 				  int *lenp)
@@ -334,6 +337,7 @@ EXPORT_SYMBOL(of_find_all_nodes);
  * and return the value.
  */
  // 为给定节点查找具有给定名称的属性并返回该值(值是个字符串地址)。
+ // eg: status = "disabled": name="status",*lenp=8.
 const void *__of_get_property(const struct device_node *np,
 			      const char *name, int *lenp)
 {
@@ -346,6 +350,9 @@ const void *__of_get_property(const struct device_node *np,
  * Find a property with a given name for a given node
  * and return the value.
  */
+/*
+* 为给定节点查找具有给定名称的属性并返回该值。
+*/
 const void *of_get_property(const struct device_node *np, const char *name,
 			    int *lenp)
 {
@@ -636,6 +643,10 @@ EXPORT_SYMBOL(of_machine_is_compatible);
  *  Returns true if the status property is absent or set to "okay" or "ok",
  *  false otherwise
  */
+/*
+* @device:检查可用性的节点，其中已经持有锁
+* 如果状态属性不存在或设置为"okay"或“ok”，则返回true，否则为false
+*/
 static bool __of_device_is_available(const struct device_node *device)
 {
 	const char *status;
@@ -643,11 +654,11 @@ static bool __of_device_is_available(const struct device_node *device)
 
 	if (!device)
 		return false;
-
+	// 获取键值对值。
 	status = __of_get_property(device, "status", &statlen);
 	if (status == NULL)
 		return true;
-
+	// 如果 status="okay"|status="ok"; 返回true。
 	if (statlen > 0) {
 		if (!strcmp(status, "okay") || !strcmp(status, "ok"))
 			return true;
@@ -798,6 +809,12 @@ EXPORT_SYMBOL(of_get_next_child);
  *      This function is like of_get_next_child(), except that it
  *      automatically skips any disabled nodes (i.e. status = "disabled").
  */
+/**
+* of_get_next_available_child -查找下一个可用的子节点
+* @node:父节点
+* @prev:父节点的前一个子节点，或首先获取NULL
+* 这个函数类似于of_get_next_child()，只是它会自动跳过任何被禁用的节点(即status = "disabled")。
+*/
 struct device_node *of_get_next_available_child(const struct device_node *node,
 	struct device_node *prev)
 {
@@ -809,14 +826,19 @@ struct device_node *of_get_next_available_child(const struct device_node *node,
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	next = prev ? prev->sibling : node->child;
+	// 若指定了prev，这遍历prev姊妹节点，否则遍历node的姊妹节点。
 	for (; next; next = next->sibling) {
+		// 检查本struct device_node是否 status="okay"|status="ok"。不是则continue。
 		if (!__of_device_is_available(next))
 			continue;
+		// 本struct device_node是可用的，增加本节点的refcount.
 		if (of_node_get(next))
 			break;
 	}
+	// prev节点的递减计数
 	of_node_put(prev);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+	// 返回可用的姊妹节点。
 	return next;
 }
 EXPORT_SYMBOL(of_get_next_available_child);
@@ -894,6 +916,13 @@ EXPORT_SYMBOL(of_get_compatible_child);
  *	of_node_put() on it when done.
  *	Returns NULL if node is not found.
  */
+/**	
+* of_get_child_by_name—根据给定父节点的名称查找名字为name的子节点
+* @node:父节点
+* @name:要查找的子名称。
+* 此函数查找给定匹配名称的子节点
+* 返回一个节点指针，如果发现，refcount增加，使用of_node_put()完成。如果没有找到节点，则返回NULL。
+*/
 struct device_node *of_get_child_by_name(const struct device_node *node,
 				const char *name)
 {
@@ -1233,6 +1262,15 @@ EXPORT_SYMBOL(of_find_matching_node_and_match);
  *
  * This routine returns 0 on success, <0 on failure.
  */
+/**	
+* of_modalias_node -查找设备节点的适当modalias		
+* @node:指向设备树节点的指针	
+* @modalias:指向将被复制到的modalias值的缓冲区的指针	
+* @len: modalias值的长度	
+* 根据compatible property的值，这个例程将尝试为一个特定的设备树节点选择一个适当的modalias值。
+* 它通过从compatible list属性的第一个条目中删除制造商前缀(由'，'分隔)来做到这一点。	
+* 这个例程成功时返回0，失败时<0。
+*/
 int of_modalias_node(struct device_node *node, char *modalias, int len)
 {
 	const char *compatible, *p;
@@ -1241,7 +1279,8 @@ int of_modalias_node(struct device_node *node, char *modalias, int len)
 	compatible = of_get_property(node, "compatible", &cplen);
 	if (!compatible || strlen(compatible) > cplen)
 		return -ENODEV;
-	p = strchr(compatible, ',');
+	p = strchr(compatible, ','); 
+	// 取“，”后边的字符串，或者直接使用compatible"的字符串。
 	strlcpy(modalias, p ? p + 1 : compatible, len);
 	return 0;
 }
@@ -2055,6 +2094,14 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
  * The function travels the lookup table to get the alias id for the given
  * device_node and alias stem.  It returns the alias id if found.
  */
+/**	
+ * of_alias_get_id -获取给定device_node的别名id	
+ * @np:指向给定device_node的指针	
+ * @stem:给定device_node的别名stem	
+ *	
+ * 该函数遍历查找表以获得给定device_node和别名stem的别名id。如果找到，它将返回别名id。	
+ */
+
 int of_alias_get_id(struct device_node *np, const char *stem)
 {
 	struct alias_prop *app;
@@ -2062,9 +2109,10 @@ int of_alias_get_id(struct device_node *np, const char *stem)
 
 	mutex_lock(&of_mutex);
 	list_for_each_entry(app, &aliases_lookup, link) {
+		// 字符不匹配，继续遍历。
 		if (strcmp(app->stem, stem) != 0)
 			continue;
-
+		// 如果字符串匹配，且节点也匹配，就返回id值。
 		if (np == app->np) {
 			id = app->id;
 			break;

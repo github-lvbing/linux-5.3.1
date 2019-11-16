@@ -5,9 +5,10 @@
 
 #include <linux/rwsem.h>
 
+// 全局链表 __i2c_board_list 的节点结构，用于管理一系列的 i2c_board_info（i2c设备信息表） 结构
 struct i2c_devinfo {
 	struct list_head	list;
-	int			busnum;
+	int			busnum;  // 将依附的 总线号。
 	struct i2c_board_info	board_info;
 };
 

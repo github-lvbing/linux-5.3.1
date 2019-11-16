@@ -86,7 +86,7 @@ struct i2c_msg {
 };
 
 /* To determine what functionality is present */
-
+// 以确定当前的功能
 #define I2C_FUNC_I2C			0x00000001
 #define I2C_FUNC_10BIT_ADDR		0x00000002
 #define I2C_FUNC_PROTOCOL_MANGLING	0x00000004 /* I2C_M_IGNORE_NAK etc. */

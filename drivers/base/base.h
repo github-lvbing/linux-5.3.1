@@ -27,14 +27,14 @@
  * driver core should ever touch these fields.
  */
 struct subsys_private {
-	struct kset subsys;
-	struct kset *devices_kset;
+	struct kset subsys;         // 定义这个子系统的struct kset
+	struct kset *devices_kset;  
 	struct list_head interfaces;
 	struct mutex mutex;
 
-	struct kset *drivers_kset;
-	struct klist klist_devices;
-	struct klist klist_drivers;
+	struct kset *drivers_kset;  
+	struct klist klist_devices; // 链表头， 管理本总线上的所有设备。
+	struct klist klist_drivers; // 链表头， 管理本总线上的所有驱动。
 	struct blocking_notifier_head bus_notifier;
 	unsigned int drivers_autoprobe:1;
 	struct bus_type *bus;
@@ -46,8 +46,8 @@ struct subsys_private {
 
 struct driver_private {
 	struct kobject kobj;
-	struct klist klist_devices;
-	struct klist_node knode_bus;
+	struct klist klist_devices;   // 链表，管理本驱动上的所有设备client.
+	struct klist_node knode_bus;  // 链表节点，被总线类型（struct bus_type）结构体的struct subsys_private *p的struct klist klist_drivers管理。
 	struct module_kobject *mkobj;
 	struct device_driver *driver;
 };
@@ -123,9 +123,12 @@ extern void device_release_driver_internal(struct device *dev,
 extern void driver_detach(struct device_driver *drv);
 extern int driver_probe_device(struct device_driver *drv, struct device *dev);
 extern void driver_deferred_probe_del(struct device *dev);
+
+// 使用bus上的匹配原则进行匹配，合适返回1,否则返回0.
 static inline int driver_match_device(struct device_driver *drv,
 				      struct device *dev)
 {
+	// 回调总线匹配方法接口 i2c_device_match()
 	return drv->bus->match ? drv->bus->match(dev, drv) : 1;
 }
 extern bool driver_allows_async_probing(struct device_driver *drv);

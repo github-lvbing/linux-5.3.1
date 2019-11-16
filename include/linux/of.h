@@ -30,10 +30,10 @@ typedef u32 ihandle;
 
 // 描述设备树给予设备的的资源节点
 struct property {
-	char	*name;  // 会用于设备与驱动的匹配
-	int	length;
+	char	*name;          // 会用于设备与驱动的匹配
+	int	   length;          // void	*value; 的长度
 	void	*value;
-	struct property *next; // 本设备的下一个资源节点
+	struct property *next;   // 本设备的下一个资源节点
 #if defined(CONFIG_OF_DYNAMIC) || defined(CONFIG_SPARC)
 	unsigned long _flags;
 #endif
@@ -49,6 +49,7 @@ struct property {
 struct of_irq_controller;
 #endif
 
+// 它是一个DTS中节点对应的内存中设备描述，一般此对象代表一个设备。
 struct device_node {
 	const char *name;
 	phandle phandle;
@@ -56,14 +57,14 @@ struct device_node {
 	struct fwnode_handle fwnode;
 
 	struct	property *properties;  //  属于本节点的所有的财产的链表头
-	struct	property *deadprops;	/* removed properties */
-	struct	device_node *parent;
-	struct	device_node *child;
-	struct	device_node *sibling;
+	struct	property *deadprops;	/* removed properties */  // 删除属性
+	struct	device_node *parent;   // 父节点
+	struct	device_node *child;    // 子节点
+	struct	device_node *sibling;  // 兄弟姐妹节点
 #if defined(CONFIG_OF_KOBJ)
 	struct	kobject kobj;
 #endif
-	unsigned long _flags;
+	unsigned long _flags;   // eg: OF_POPULATED
 	void	*data;
 #if defined(CONFIG_SPARC)
 	unsigned int unique_id;
@@ -490,6 +491,17 @@ static inline int of_property_read_u16_array(const struct device_node *np,
  *
  * The out_values is modified only if a valid u32 value can be decoded.
  */
+/**
+* of_property_read_u32_array—从属性中查找并读取一个32位整数数组。
+* @np:要读取属性值的设备节点。
+* @propname:要搜索的属性名。
+* @out_values:指向返回值的指针，仅当返回值为0时才修改。
+* @sz:要读取的数组元素数量
+* 在设备节点中搜索属性并从中读取32位值。如果属性不存在，则返回-EINVAL;
+* 如果属性没有值，则返回-ENODATA;
+* 如果属性数据不够大，则返回-EOVERFLOW。
+* out_values只有在一个有效的u32值可以被解码的情况下才会被修改。
+*/
 static inline int of_property_read_u32_array(const struct device_node *np,
 					     const char *propname,
 					     u32 *out_values, size_t sz)
@@ -1172,6 +1184,12 @@ static inline int of_property_read_string_index(const struct device_node *np,
  * Search for a property in a device node.
  * Returns true if the property exists false otherwise.
  */
+/**
+* of_property_read_bool -查找属性
+* @np:要读取属性值的设备节点。
+* @propname:要搜索的属性名。
+* 在设备节点中搜索属性。如果属性存在返回true。否则false。
+*/
 static inline bool of_property_read_bool(const struct device_node *np,
 					 const char *propname)
 {
@@ -1194,10 +1212,12 @@ static inline int of_property_read_u16(const struct device_node *np,
 	return of_property_read_u16_array(np, propname, out_value, 1);
 }
 
+// 获得设备节点np，属性名为propname的u32值到out_value。读取到返回0.
 static inline int of_property_read_u32(const struct device_node *np,
 				       const char *propname,
 				       u32 *out_value)
 {
+	// 从属性中查找并读取1个32位整数数组。
 	return of_property_read_u32_array(np, propname, out_value, 1);
 }
 

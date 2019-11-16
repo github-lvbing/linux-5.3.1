@@ -29,6 +29,7 @@ static inline void change_bit(unsigned int nr, volatile unsigned long *p)
 	atomic_long_xor(BIT_MASK(nr), (atomic_long_t *)p);
 }
 
+// 将*p 的第nr位设置成1,并返回原来这一位的值
 static inline int test_and_set_bit(unsigned int nr, volatile unsigned long *p)
 {
 	long old;

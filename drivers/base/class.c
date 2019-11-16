@@ -527,6 +527,12 @@ EXPORT_SYMBOL_GPL(class_compat_unregister);
  * @dev: the target bus device
  * @device_link: an optional device to which a "device" link should be created
  */
+/**
+ * class_compat_create_link -创建一个到总线设备的兼容类设备链接
+ * @cls: -兼容类
+ * @dev:目标总线设备
+ * @device_link:创建“设备”链接的可选设备
+ */
 int class_compat_create_link(struct class_compat *cls, struct device *dev,
 			     struct device *device_link)
 {

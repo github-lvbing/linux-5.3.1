@@ -50,7 +50,7 @@ extern void klist_remove(struct klist_node *n);
 
 extern int klist_node_attached(struct klist_node *n);
 
-
+// 迭代器中间结构体。
 struct klist_iter {
 	struct klist		*i_klist;
 	struct klist_node	*i_cur;

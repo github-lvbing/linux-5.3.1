@@ -234,7 +234,7 @@ void memzero_explicit(void *s, size_t count);
  *
  * @path: path to extract the filename from.
  */
- /*
+/**
  * kbasename—返回路径名的最后一部分。
  * @path:提取文件名的路径。
  */

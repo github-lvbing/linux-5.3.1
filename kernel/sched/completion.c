@@ -25,6 +25,13 @@
  * If this function wakes up a task, it executes a full memory barrier before
  * accessing the task state.
  */
+/**
+* complete:-表示一个线程正在等待这个完成。唤醒一个等待线程，一个线程告诉另一个线程工作已经完成。
+* @x:保存特定完成的状态
+* 这将唤醒一个等待完成的线程。线程将按照它们排队的顺序被唤醒。
+* 参见complete_all()， wait_for_completion()和相关的例程。
+* 如果这个函数唤醒了一个任务，它将在访问任务状态之前执行一个完整的内存屏障。
+*/
 void complete(struct completion *x)
 {
 	unsigned long flags;

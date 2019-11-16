@@ -76,6 +76,20 @@ EXPORT_SYMBOL_GPL(idr_alloc_u32);
  * Return: The newly allocated ID, -ENOMEM if memory allocation failed,
  * or -ENOSPC if no free IDs could be found.
  */
+/**	
+* idr_alloc()——分配一个ID。
+* @idr: IDR手柄。
+* @ptr:与新ID关联的指针。
+* @start:最小ID(包括)。
+* @end:最大ID (exclusive)。
+* @gfp:内存分配标志。
+* 在@start和@end指定的范围内分配未使用的ID。如果@end <= 0，则视为比%INT_MAX大1。
+* 这允许调用者使用@start + N作为@end，只要N在整数范围内。
+* 调用者应该提供自己的锁，以确保不可能对IDR进行两次并发修改。
+* 对IDR的只读访问可以在RCU读锁下进行，也可以排除同步写操作。
+* 返回:新分配的ID， -ENOMEM(如果内存分配失败)，-ENOSPC(如果没有找到空闲ID)。
+*/
+
 int idr_alloc(struct idr *idr, void *ptr, int start, int end, gfp_t gfp)
 {
 	u32 id = start;

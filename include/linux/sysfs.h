@@ -81,6 +81,19 @@ do {							\
  * @bin_attrs:	Pointer to NULL terminated list of binary attributes.
  *		Either attrs or bin_attrs or both must be provided.
  */
+/**
+ * struct attribute_group—用于声明属性组的数据结构。	
+ * @name: optional: Attribute group name(可选属性组名)	
+ * @is_visible: optional:函数返回与组的属性关联的权限。
+           将对组中的每个非二进制属性重复调用。只接受读/写权限和SYSFS_PREALLOC。
+           如果属性不可见，则必须返回0。返回的值将替换结构属性中定义的静态权限。	
+ * @is_bin_visible:可选:函数返回与组的二进制属性关联的权限。将对组中的每个二进制属性重复调用。
+           只接受读/写权限和SYSFS_PREALLOC。如果二进制属性不可见，则必须返回0。
+           返回的值将替换struct bin_attribute中定义的静态权限。	
+ * @attrs:指向空终止属性列表的指针。
+ * @bin_attrs:指向以空结尾的二进制属性列表的指针。
+           必须提供attrs或bin_attrs，或者两者都提供。
+ */
 struct attribute_group {
 	const char		*name;
 	umode_t			(*is_visible)(struct kobject *,

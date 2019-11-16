@@ -143,6 +143,12 @@ void driver_remove_groups(struct device_driver *drv,
  * since most of the things we have to do deal with the bus
  * structures.
  */
+/**
+* driver_register—使用总线注册驱动程序
+* @drv:需要注册的驱动程序
+*
+* 我们将大部分工作传递给bus_add_driver()调用，因为我们必须处理总线结构的大部分事情。
+*/
 int driver_register(struct device_driver *drv)
 {
 	int ret;
@@ -159,7 +165,7 @@ int driver_register(struct device_driver *drv)
 	    (drv->bus->shutdown && drv->shutdown))
 		printk(KERN_WARNING "Driver '%s' needs updating - please use "
 			"bus_type methods\n", drv->name);
-
+	// 通过它的名字来定位总线上的驱动程序。
 	other = driver_find(drv->name, drv->bus);
 	if (other) {
 		printk(KERN_ERR "Error: Driver '%s' is already registered, "
@@ -210,6 +216,14 @@ EXPORT_SYMBOL_GPL(driver_unregister);
  * from being unregistered or unloaded while the caller is using it.
  * The caller is responsible for preventing this.
  */
+/**
+* driver_find -通过它的名字来定位总线上的驱动程序。
+* @name:司机的名字。
+* @bus:扫描司机的总线。
+*
+* 调用kset_find_obj()遍历总线上的驱动程序列表，按名称查找驱动程序。如果找到返回驱动程序。
+* 这个例程没有提供锁来防止它返回的驱动程序在调用者使用它时被取消注册或卸载。调用者负责防止这种情况发生。
+*/
 struct device_driver *driver_find(const char *name, struct bus_type *bus)
 {
 	struct kobject *k = kset_find_obj(bus->p->drivers_kset, name);

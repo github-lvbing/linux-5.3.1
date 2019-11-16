@@ -22,6 +22,7 @@ EXPORT_SYMBOL_GPL(__i2c_board_lock);
 LIST_HEAD(__i2c_board_list);
 EXPORT_SYMBOL_GPL(__i2c_board_list);
 
+// 第一动态总线编号
 int __i2c_first_dynamic_bus_num;
 EXPORT_SYMBOL_GPL(__i2c_first_dynamic_bus_num);
 

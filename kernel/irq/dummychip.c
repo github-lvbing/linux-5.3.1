@@ -50,6 +50,9 @@ struct irq_chip no_irq_chip = {
  * Generic dummy implementation which can be used for
  * real dumb interrupt sources
  */
+/*	
+ * 通用的虚拟实现，可用于真正的哑中断源	
+*/
 struct irq_chip dummy_irq_chip = {
 	.name		= "dummy",
 	.irq_startup	= noop_ret,

@@ -126,6 +126,17 @@ EXPORT_SYMBOL_GPL(irq_domain_free_fwnode);
  * Allocates and initializes an irq_domain structure.
  * Returns pointer to IRQ domain, or NULL on failure.
  */
+/**
+* irq_domain_add()——分配一个新的irq_domain数据结构
+* @fwnode:中断控制器的固件节点
+* @size:线性映射的大小;仅用于基数映射
+* @hwirq_max:控制器支持的最大中断数
+* @direct_max:直接映射的最大值;使用~0没有限制;0表示没有直接映射
+* @ops:域回调
+* @host_data:控制器私有数据指针
+*
+* 分配并初始化irq_domain结构。返回指向IRQ域的指针，如果失败则返回NULL。
+*/
 struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 				    irq_hw_number_t hwirq_max, int direct_max,
 				    const struct irq_domain_ops *ops,

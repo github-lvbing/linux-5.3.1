@@ -112,7 +112,7 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  * default attributes, the bus' methods, PM operations, and the driver core's
  * private data.
  */
-struct bus_type {
+struct bus_type { // eg i2c_bus_type
 	const char		*name;       // 总线的名字，eg:"i2c"
 	const char		*dev_name;   // 用于子系统枚举设备，如("foo%u"， dev->id)。
 	struct device		*dev_root;
@@ -563,14 +563,14 @@ struct device_type {
 	const char *name;
 	const struct attribute_group **groups;
 	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
-	char *(*devnode)(struct device *dev, umode_t *mode,
-			 kuid_t *uid, kgid_t *gid);
+	char *(*devnode)(struct device *dev, umode_t *mode, kuid_t *uid, kgid_t *gid);
 	void (*release)(struct device *dev);
 
 	const struct dev_pm_ops *pm;
 };
 
 /* interface for exporting device attributes */
+// 用于导出设备属性的接口
 struct device_attribute {
 	struct attribute	attr;
 	ssize_t (*show)(struct device *dev, struct device_attribute *attr,
@@ -989,6 +989,61 @@ struct dev_links_info {
  * instead, that structure, like kobject structures, is usually embedded within
  * a higher-level representation of the device.
  */
+/**
+* 结构设备-基本的设备结构
+* @parent:设备的“父”设备，它所连接的设备。在大多数情况下，父设备是某种总线或主机控制器。
+          如果父设备为空，则设备为顶级设备，这通常不是您想要的。
+* @p:保存设备驱动核心部分的私有数据。有关详细信息，请参阅device_private结构的注释。
+* @kobj:一个顶级抽象类，其他类都是从它派生出来的。
+* @init_name:设备的初始名称。
+* @type:设备的类型。它标识设备类型并携带类型特定的信息。
+* @mutex:互斥锁来同步对它的驱动的调用。
+* @lockdep_mutex:一个可选的调试锁，子系统可以使用它作为一个对等锁来获得device_lock的本地化lockdep覆盖。
+* @bus:总线设备类型为on。
+* @driver:哪个驱动程序分配了这个
+* @platform_data:特定于设备的平台数据。
+          例如:对于自定义板上的设备，作为典型的嵌入式和基于SOC的硬件，Linux经常使用platform_data指向板特定的结构来描述设备及其连接方式。
+          这包括可用的端口、芯片变体、GPIO引脚在什么附加角色中起作用，等等。这缩小了“板支持包”(bsp)，并最小化驱动程序中特定于板的#ifdefs。
+* @driver_data:驱动程序特定信息的私有指针。
+* @links:该设备的供应商和消费者的链接。
+* @power:用于设备电源管理。See Documentation/driver-api/pm/devices.rst for details.
+* @pm_domain:提供在系统挂起、休眠、系统恢复和运行时PM转换期间执行的回调，以及子系统级和驱动程序级的回调。
+* @pins:用于设备的pin管理。See Documentation/driver-api/pinctl.rst for details.
+* @msi_list:主机MSI描述符
+* @msi_domain:该设备使用的通用MSI域。
+* @numa_node:这个设备附近的numa节点。
+* @dma_ops:此设备的DMA映射操作。
+* @dma_mask: dma掩码(如果dma'ble设备)。
+* @ent_dma_mask:与dma_mask类似，但对于alloc_coherent映射，因为并不是所有硬件都支持64位地址来实现一致的分配，比如描述符。
+* @bus_dma_mask:上游网桥或总线的掩码，其施加的DMA限制小于设备本身支持的DMA限制。
+* @dma_pfn_offset:相对于RAM的DMA内存范围的偏移量
+* @dma_parms:一个低级别的驱动程序可以设置这些来教授IOMMU代码关于段限制。
+* @dma_pools: dma池(如果dma'ble设备)。
+* @dma_mem:内部一致的mem重写。
+* @cma_area:用于dma分配的连续内存区域
+* @archdata:用于特定于arch的添加。
+* @of_node:关联的设备树节点。
+* @fwnode:由平台固件提供的关联设备节点。
+* @devt:用于创建sysfs“dev”。
+* @id:设备实例
+* @devres_lock:自旋锁来保护设备的资源。
+* @devres_head:设备的资源列表。
+* @knode_class:用于将设备添加到类列表中的节点。
+* @class:设备的类。
+* @groups:可选属性组。
+* @release:回调，在所有引用都消失后释放设备。这应该由设备的分配器(即发现设备的总线驱动程序)设置。
+* @iommu_group:设备所属的IOMMU组。
+* @iommu_fwspec:固件提供的特定于iommu的属性。
+* @iommu_param:每个设备通用的IOMMU运行时数据
+* @offline_disabled:如果设置，设备将永久在线。
+* @offline:成功调用总线类型的.offline()后设置。
+* @of_node_reuse:设置设备树节点是否与祖先设备共享。
+* @dma_coherent:这个特定的设备是dma coherent，即使架构支持非相干设备。
+*
+* 在最底层，Linux系统中的每个设备都由一个struct设备实例表示。
+* 设备结构包含设备模型核心对系统建模所需的信息。然而，大多数子系统跟踪关于它们所承载的设备的附加信息。
+* 因此，设备很少使用裸设备结构来表示;相反，该结构(如kobject结构)通常嵌入在设备的高级表示中。
+*/
 struct device {
 	struct kobject kobj;
 	struct device		*parent;
@@ -1051,8 +1106,8 @@ struct device {
 	/* arch specific additions */
 	struct dev_archdata	archdata;
 
-	struct device_node	*of_node; /* associated device tree node */
-	struct fwnode_handle	*fwnode; /* firmware device node */
+	struct device_node	*of_node; /* associated device tree node 关联设备树节点 */
+	struct fwnode_handle	*fwnode; /* firmware device node  由平台固件提供的关联设备节点。 */
 
 #ifdef CONFIG_NUMA
 	int		numa_node;	/* NUMA node this device is close to */

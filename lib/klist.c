@@ -277,6 +277,13 @@ EXPORT_SYMBOL_GPL(klist_node_attached);
  * Similar to klist_iter_init(), but starts the action off with @n,
  * instead of with the list head.
  */
+/**
+* klist_iter_init_node -初始化一个klist_iter结构。
+* @k: 我们在迭代klist。
+* @i: 我们正在填充klist_iter。
+* @n:节点开始。
+* 类似于klist_iter_init()，但是以@n开始操作，而不是以列表头开始。
+*/
 void klist_iter_init_node(struct klist *k, struct klist_iter *i,
 			  struct klist_node *n)
 {

@@ -530,6 +530,7 @@ static void device_links_missing_supplier(struct device *dev)
  *
  * Links with the DL_FLAG_STATELESS flag set are ignored.
  */
+ // 检查供应商驱动程序是否存在。
 int device_links_check_suppliers(struct device *dev)
 {
 	struct device_link *link;
@@ -1960,6 +1961,11 @@ static void device_remove_class_symlinks(struct device *dev)
  * @dev: device
  * @fmt: format string for the device's name
  */
+/**	
+ * dev_set_name—设置设备名称	
+ * @dev:设备	
+ * @fmt:设备名称的格式字符串	
+ */
 int dev_set_name(struct device *dev, const char *fmt, ...)
 {
 	va_list vargs;
@@ -2232,6 +2238,18 @@ EXPORT_SYMBOL_GPL(device_add);
  * if it returned an error! Always use put_device() to give up the
  * reference initialized in this function instead.
  */
+/**
+* device_register—向系统注册一个设备。成功返回0
+* @dev:指向设备结构的指针
+*
+* 这发生在两个干净的步骤-初始化设备，并将其添加到系统。
+* 这两个步骤可以分别调用，但这是最简单和最常见的。
+* 也就是说，你应该只调用两个助手分别如果有一个明确定义的需要使用和重计数设备之前，它被添加到层次结构。
+*
+* 有关更多信息，请参见device_initialize()和device_add()的kerneldoc。
+*
+* 注意:_Never_在调用这个函数后直接释放@dev，即使它返回一个错误!始终使用put_device()放弃在此函数中初始化的引用。
+*/
 int device_register(struct device *dev)
 {
 	device_initialize(dev);
@@ -2296,6 +2314,12 @@ EXPORT_SYMBOL_GPL(kill_device);
  * NOTE: this should be called manually _iff_ device_add() was
  * also called manually.
  */
+/**	
+* device_del -从系统中删除设备。	
+* @dev:设备。
+* 这是设备取消注册序列的第一部分。这将从我们在这里控制的列表中删除设备，从在device_add()中添加的其他驱动程序模型子系统中删除设备，并从kobject层次结构中删除设备。	
+* 注意:这应该被手动调用 _iff_ device_add()也被手动调用。
+*/
 void device_del(struct device *dev)
 {
 	struct device *parent = dev->parent;
@@ -2365,6 +2389,15 @@ EXPORT_SYMBOL_GPL(device_del);
  * via device_release() above. Otherwise, the structure will
  * stick around until the final reference to the device is dropped.
  */
+/**	
+* device_unregister—从系统中注销设备。	
+* @dev:设备消失。
+*
+* 我们分两部分来做，比如device_register()。
+* 首先，我们使用device_del()从所有子系统中删除它，
+* 然后通过put_device()减少引用计数。如果这是最终的引用计数，那么将通过上面的device_release()清理设备。
+* 否则，该结构将一直保留到设备的最终引用被删除。	
+*/
 void device_unregister(struct device *dev)
 {
 	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);

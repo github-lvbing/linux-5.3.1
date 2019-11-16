@@ -288,6 +288,19 @@ static struct device *next_device(struct klist_iter *i)
  * to retain this data, it should do so, and increment the reference
  * count in the supplied callback.
  */
+/**
+* bus_for_each_dev -设备迭代器。
+* @bus:总线类型。
+* @start:开始迭代的设备。
+* @data:回调的数据。
+* @fn:为每个设备调用的函数。
+*
+* 遍历@bus的设备列表，并为每个设备调用@fn，传递它@data。如果@start不为空，则使用该设备开始迭代。
+* 我们每次都检查@fn的返回。如果它返回的不是0，我们就跳出并返回那个值。
+*	
+* 注意:返回非零值的设备不会以任何方式保留，其refcount也不会增加。
+* 如果调用者需要保留这些数据，它应该这样做，并在提供的回调中增加引用计数。
+*/
 int bus_for_each_dev(struct bus_type *bus, struct device *start,
 		     void *data, int (*fn)(struct device *, void *))
 {
@@ -438,6 +451,17 @@ static struct device_driver *next_driver(struct klist_iter *i)
  * in the callback. It must also be sure to increment the refcount
  * so it doesn't disappear before returning to the caller.
  */
+/**
+* bus_for_each_drv -驱动程序迭代器.遍历总线bus上所有的驱动device_driver，将data作为参数并回调(*fn)处理。
+* @bus:我们正在处理的driver。
+* @start:开始迭代的驱动程序。
+* @data:传递给回调的数据。
+* @fn:调用每个驱动程序的函数。
+* 这与上面的设备迭代器几乎相同。我们迭代属于@bus的每个驱动程序，并为每个调用@fn。
+* 如果@fn返回0以外的任何值，则跳出并返回它。如果@start不为空，则使用它作为列表的头部。
+* 注意:我们不返回返回非零值的驱动程序，也不为该驱动程序增加引用计数。
+* 如果调用者需要知道该信息，它必须在回调中设置该信息。它还必须确保增加refcount，这样它才不会在返回给调用者之前消失。
+*/
 int bus_for_each_drv(struct bus_type *bus, struct device_driver *start,
 		     void *data, int (*fn)(struct device_driver *, void *))
 {
@@ -447,10 +471,12 @@ int bus_for_each_drv(struct bus_type *bus, struct device_driver *start,
 
 	if (!bus)
 		return -EINVAL;
-
+	// 初始化一个迭代klist_iter中间结构,用于下面的迭代。迭代将从start->p->knode_bus的节点开始，第一个迭代记录在struct klist_iter i;
 	klist_iter_init_node(&bus->p->klist_drivers, &i,
 			     start ? &start->p->knode_bus : NULL);
+	// 在总线bus上,遍历总线上的所有驱动。
 	while ((drv = next_driver(&i)) && !error)
+		// 回掉迭代器
 		error = fn(drv, data);
 	klist_iter_exit(&i);
 	return error;
@@ -614,6 +640,10 @@ static DRIVER_ATTR_WO(uevent);
  * bus_add_driver - Add a driver to the bus.
  * @drv: driver.
  */
+/**
+* bus_add_driver -向总线添加一个驱动程序。
+* @drv:driver。
+*/
 int bus_add_driver(struct device_driver *drv)
 {
 	struct bus_type *bus;
