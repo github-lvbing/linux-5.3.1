@@ -295,7 +295,7 @@ struct device_driver {
 	void (*shutdown) (struct device *dev);
 	int (*suspend) (struct device *dev, pm_message_t state);
 	int (*resume) (struct device *dev);
-	const struct attribute_group **groups;
+	const struct attribute_group **groups; // 由驱动核心自动创建的默认属性。
 
 	const struct dev_pm_ops *pm;
 	void (*coredump) (struct device *dev);
@@ -539,6 +539,14 @@ extern void class_destroy(struct class *cls);
 
 /* This is a #define to keep the compiler from merging different
  * instances of the __key variable */
+// 这是一个#定义，用来防止编译器合并不同的_key变量实例
+ /*
+ * class_create动态创建设备的逻辑类，并完成部分字段的初始化，然后将其添加到内核中。
+ * 创建的逻辑类位于/sys/class/。
+ *
+ * owner, 拥有者。一般赋值为THIS_MODULE。
+ * name, 创建的逻辑类的名称。
+ */
 #define class_create(owner, name)		\
 ({						\
 	static struct lock_class_key __key;	\

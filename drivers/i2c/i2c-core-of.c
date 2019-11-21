@@ -139,6 +139,8 @@ static int of_dev_or_parent_node_match(struct device *dev, const void *data)
 }
 
 /* must call put_device() when done with returned i2c_client device */
+// 当使用返回的i2c_client设备时，必须调用put_device().
+// 通过设备节点获得设备结构体。
 struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
 {
 	struct device *dev;
@@ -157,6 +159,8 @@ struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
 EXPORT_SYMBOL(of_find_i2c_device_by_node);
 
 /* must call put_device() when done with returned i2c_adapter device */
+// 当使用返回的i2c_adapter设备时，必须调用put_device()。
+// 通过设备节点获得适配器结构体。
 struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
 {
 	struct device *dev;
@@ -206,6 +210,8 @@ i2c_of_match_device_sysfs(const struct of_device_id *matches,
 		 * tree compatible strings, however with no actual of_node the
 		 * of_match_device() will not match
 		 */
+		// 通过i2c sysfs接口添加设备，为我们提供一个可能与设备树兼容的字符串进行匹配，
+		// 但是如果没有实际的of_node, of_match_device()将不匹配
 		if (sysfs_streq(client->name, matches->compatible))
 			return matches;
 

@@ -31,12 +31,20 @@ static DEFINE_MUTEX(chrdevs_lock);
 
 #define CHRDEV_MAJOR_HASH_SIZE 255
 
+// 哈希表
+// CHRDEV_MAJOR_MAX =  512,so: // 主设备号节点struct char_device_struct。
+//----------------------------------------------------
+// chrdevs[0]  -->major=0...	-->major=255...  -->major=510...
+// chrdevs[1]  -->major=1...	-->major=256...  -->major=511...
+//    ...           ...              ...
+// chrdevs[254]-->major=254...  -->major=509...
+//----------------------------------------------------
 static struct char_device_struct {
-	struct char_device_struct *next;
-	unsigned int major;
-	unsigned int baseminor;
-	int minorct;
-	char name[64];
+	struct char_device_struct *next;   // 链表头。（哈希表）
+	unsigned int major;      // 主设备号
+	unsigned int baseminor;  // 次设备号起始
+	int minorct;             // 次设备号个数
+	char name[64];           // 名字
 	struct cdev *cdev;		/* will die */
 } *chrdevs[CHRDEV_MAJOR_HASH_SIZE];
 
@@ -62,6 +70,7 @@ void chrdev_show(struct seq_file *f, off_t offset)
 
 #endif /* CONFIG_PROC_FS */
 
+// 动态获得一个主设备号
 static int find_dynamic_major(void)
 {
 	int i;
@@ -93,6 +102,13 @@ static int find_dynamic_major(void)
  * with given major.
  *
  */
+/*
+* 注册一个指定小范围的主域名。范围[MKDEV(major,baseminor),MKDEV(major,baseminor+minorct)]
+*
+* 如果major == 0，这个函数将动态分配一个未使用的major。
+* 如果major> 0 这个函数将尝试保留范围的minors与给定的major。
+*
+*/
 static struct char_device_struct *
 __register_chrdev_region(unsigned int major, unsigned int baseminor,
 			   int minorct, const char *name)
@@ -113,6 +129,7 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 		return ERR_PTR(-EINVAL);
 	}
 
+	// 分配字符设备号对象 struct char_device_struct。
 	cd = kzalloc(sizeof(struct char_device_struct), GFP_KERNEL);
 	if (cd == NULL)
 		return ERR_PTR(-ENOMEM);
@@ -120,6 +137,7 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 	mutex_lock(&chrdevs_lock);
 
 	if (major == 0) {
+		// 动态获得一个主设备号
 		ret = find_dynamic_major();
 		if (ret < 0) {
 			pr_err("CHRDEV \"%s\" dynamic allocation region is full\n",
@@ -153,9 +171,11 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 	strlcpy(cd->name, name, sizeof(cd->name));
 
 	if (!prev) {
+		// 当前节点的可用次设备号足够
 		cd->next = curr;
 		chrdevs[i] = cd;
 	} else {
+		// 当前节点的可用次设备号不足够
 		cd->next = prev->next;
 		prev->next = cd;
 	}
@@ -197,18 +217,27 @@ __unregister_chrdev_region(unsigned major, unsigned baseminor, int minorct)
  *
  * Return value is zero on success, a negative error code on failure.
  */
+/**
+* register_chrdev_region()——注册一个设备号范围
+* @from:第一个在期望的设备编号范围内;必须包含主号码。
+* @count:所需的连续设备号
+* @name:设备或驱动程序的名称。
+* 如果成功，返回值为0;如果失败，返回值为负的错误代码。
+*/
 int register_chrdev_region(dev_t from, unsigned count, const char *name)
 {
 	struct char_device_struct *cd;
 	dev_t to = from + count;
 	dev_t n, next;
 
+	// 一个主设备号无法容纳的话，就多次分配。
 	for (n = from; n < to; n = next) {
 		next = MKDEV(MAJOR(n)+1, 0);
+		// 如果当前的n的主设备号足够分配次设备号。那么即将申请的主设备号就是to
 		if (next > to)
 			next = to;
-		cd = __register_chrdev_region(MAJOR(n), MINOR(n),
-			       next - n, name);
+		// 注册一个指定小范围的主域名[NKDEV(MAJOR(n),MINOR(n)),MKDEV(MAJOR(n),MINOR(n)+(next - n))]
+		cd = __register_chrdev_region(MAJOR(n), MINOR(n), next - n, name);
 		if (IS_ERR(cd))
 			goto fail;
 	}
@@ -476,6 +505,14 @@ static int exact_lock(dev_t dev, void *data)
  * cdev_add() adds the device represented by @p to the system, making it
  * live immediately.  A negative error code is returned on failure.
  */
+/**
+* cdev_add()——向系统中添加一个char设备
+* @p:设备的cdev结构
+* @dev:该设备负责的第一个设备号
+* @count:该设备对应的连续副号码数量
+*
+* cdev_add()将@p表示的设备添加到系统中，使其立即生效。失败时返回一个负错误码。
+*/
 int cdev_add(struct cdev *p, dev_t dev, unsigned count)
 {
 	int error;
@@ -645,6 +682,13 @@ struct cdev *cdev_alloc(void)
  * Initializes @cdev, remembering @fops, making it ready to add to the
  * system with cdev_add().
  */
+/**
+* cdev_init()——初始化一个cdev结构
+* @cdev:要初始化的结构
+* @fops:这个设备的file_operations
+*
+* 初始化@cdev，记住@fops，让它准备好使用cdev_add()添加到系统中。
+*/
 void cdev_init(struct cdev *cdev, const struct file_operations *fops)
 {
 	memset(cdev, 0, sizeof *cdev);

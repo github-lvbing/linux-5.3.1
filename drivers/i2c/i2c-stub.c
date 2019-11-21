@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
-    i2c-stub.c - I2C/SMBus chip emulator
+    i2c-stub.c - I2C/SMBus chip emulator   I2C/SMBus Ä£ÄâÆ÷
 
     Copyright (c) 2004 Mark M. Hoffman <mhoffman@lightlink.com>
     Copyright (C) 2007-2014 Jean Delvare <jdelvare@suse.de>

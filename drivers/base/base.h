@@ -27,15 +27,15 @@
  * driver core should ever touch these fields.
  */
 struct subsys_private {
-	struct kset subsys;         // 定义这个子系统的struct kset
-	struct kset *devices_kset;  
+	struct kset subsys;         // 定义这个子系统（eg:i2c子系统）的struct kset；用 kset_register（）
+	struct kset *devices_kset;  // 管理设备私有数据 struct device_private 中的??.对象。
 	struct list_head interfaces;
 	struct mutex mutex;
 
-	struct kset *drivers_kset;  
+	struct kset *drivers_kset;  // 管理驱动设备私有数据struct driver_private中的struct kobject kobj.对象。
 	struct klist klist_devices; // 链表头， 管理本总线上的所有设备。
-	struct klist klist_drivers; // 链表头， 管理本总线上的所有驱动。
-	struct blocking_notifier_head bus_notifier;
+	struct klist klist_drivers; // 链表头， 管理本总线上的所有驱动。节点：struct driver_private->struct klist_node knode_bus;
+	struct blocking_notifier_head bus_notifier;  // 总线通知器列表，为任何有关此总线上的事情
 	unsigned int drivers_autoprobe:1;
 	struct bus_type *bus;
 
@@ -46,7 +46,7 @@ struct subsys_private {
 
 struct driver_private {
 	struct kobject kobj;
-	struct klist klist_devices;   // 链表，管理本驱动上的所有设备client.
+	struct klist klist_devices;   // 链表，管理本驱动上的所有设备client.（驱动绑定了设备）
 	struct klist_node knode_bus;  // 链表节点，被总线类型（struct bus_type）结构体的struct subsys_private *p的struct klist klist_drivers管理。
 	struct module_kobject *mkobj;
 	struct device_driver *driver;
@@ -77,8 +77,8 @@ struct driver_private {
 struct device_private {
 	struct klist klist_children;
 	struct klist_node knode_parent;
-	struct klist_node knode_driver;
-	struct klist_node knode_bus;
+	struct klist_node knode_driver;  // 链表节点, 被驱动的私有数据结构struct driver_private 的成员struct klist klist_devices 管理。（设备绑定到驱动）
+	struct klist_node knode_bus;     // 链表节点，被总线类型（struct bus_type）结构体的struct subsys_private *p的struct klist klist_devices 管理。
 	struct klist_node knode_class;
 	struct list_head deferred_probe;
 	struct device_driver *async_driver;

@@ -90,6 +90,11 @@ static int i2c_smbus_check_pec(u8 cpec, struct i2c_msg *msg)
  * This executes the SMBus "receive byte" protocol, returning negative errno
  * else the byte received from the device.
  */
+/**	
+* i2c_smbus_read_byte - SMBus“接收字节”协议	
+* @client:从设备的句柄
+* 执行SMBus的“接收字节”协议，返回从设备接收到的字节为负的errno else。
+*/
 s32 i2c_smbus_read_byte(const struct i2c_client *client)
 {
 	union i2c_smbus_data data;
@@ -522,18 +527,31 @@ cleanup:
  * This executes an SMBus protocol operation, and returns a negative
  * errno code else zero on success.
  */
+/**
+* 执行SMBus协议操作
+* @adapter: I2C总线的句柄
+* @addr:该总线上SMBus奴隶的地址
+* @flags: I2C_CLIENT_* flags(通常为0或I2C_CLIENT_PEC)
+* @read_write: I2C_SMBUS_READ或I2C_SMBUS_WRITE
+* @command:由slave解释的字节，用于使用这些字节的协议
+* @protocol:要执行的SMBus协议操作，比如I2C_SMBUS_PROC_CALL
+* @data:要读取或写入的数据
+*
+* 这将执行SMBus协议操作，并在成功时返回一个负的errno代码else 0。
+*/
 s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 		   unsigned short flags, char read_write,
 		   u8 command, int protocol, union i2c_smbus_data *data)
 {
 	s32 res;
-
+	// 获得对I2C总线段的独占访问
 	res = __i2c_lock_bus_helper(adapter);
 	if (res)
 		return res;
-
+	// 开始 操作
 	res = __i2c_smbus_xfer(adapter, addr, flags, read_write,
 			       command, protocol, data);
+	// 释放对I2C总线段的独占访问
 	i2c_unlock_bus(adapter, I2C_LOCK_SEGMENT);
 
 	return res;

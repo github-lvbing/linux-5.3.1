@@ -403,12 +403,12 @@ extern int of_add_property(struct device_node *np, struct property *prop);
 extern int of_remove_property(struct device_node *np, struct property *prop);
 extern int of_update_property(struct device_node *np, struct property *newprop);
 
-/* For updating the device tree at runtime */
-#define OF_RECONFIG_ATTACH_NODE		0x0001
-#define OF_RECONFIG_DETACH_NODE		0x0002
-#define OF_RECONFIG_ADD_PROPERTY	0x0003
-#define OF_RECONFIG_REMOVE_PROPERTY	0x0004
-#define OF_RECONFIG_UPDATE_PROPERTY	0x0005
+/* For updating the device tree at runtime */ // 用于在运行时更新设备树
+#define OF_RECONFIG_ATTACH_NODE		0x0001   // 附加属性
+#define OF_RECONFIG_DETACH_NODE		0x0002   // 分离属性
+#define OF_RECONFIG_ADD_PROPERTY	0x0003   // 添加属性
+#define OF_RECONFIG_REMOVE_PROPERTY	0x0004   // 移除属性
+#define OF_RECONFIG_UPDATE_PROPERTY	0x0005   // 更新属性
 
 extern int of_attach_node(struct device_node *);
 extern int of_detach_node(struct device_node *);

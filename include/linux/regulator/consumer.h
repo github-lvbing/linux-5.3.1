@@ -164,6 +164,15 @@ struct regulator;
  * a convenience to consumers which require multiple supplies.  This
  * structure is used to manage data for these calls.
  */
+	
+/**	
+* struct regulator_bulk_data -用于批量调整操作的数据。	
+*	
+* @supply:供应的名称。在使用批量调整器api之前由用户初始化。	
+* @消费者:供应的调节消费者。这将由批量API管理。	
+*
+*调整器API提供了一系列regulator_bulk_() API调用，方便了需要多个供应的消费者。此结构用于管理这些调用的数据。
+*/
 struct regulator_bulk_data {
 	const char *supply;
 	struct regulator *consumer;

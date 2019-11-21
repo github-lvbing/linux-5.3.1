@@ -97,6 +97,11 @@ EXPORT_SYMBOL_GPL(driver_find_device);
  * @drv: driver.
  * @attr: driver attribute descriptor.
  */
+/**
+* driver_create_file -为驱动程序创建sysfs文件。
+* @drv:司机。
+* @attr:驱动程序属性描述符。	
+*/
 int driver_create_file(struct device_driver *drv,
 		       const struct driver_attribute *attr)
 {
@@ -123,6 +128,7 @@ void driver_remove_file(struct device_driver *drv,
 }
 EXPORT_SYMBOL_GPL(driver_remove_file);
 
+// 如果grop不为空的话，将在驱动文件夹下创建以group名字的子文件夹，然后在子文件夹下添加group的属性文件
 int driver_add_groups(struct device_driver *drv,
 		      const struct attribute_group **groups)
 {
@@ -154,6 +160,7 @@ int driver_register(struct device_driver *drv)
 	int ret;
 	struct device_driver *other;
 
+	// 检查总线上的私有数据结构是否分配，没有就退出。
 	if (!drv->bus->p) {
 		pr_err("Driver '%s' was unable to register with bus_type '%s' because the bus was not initialized.\n",
 			   drv->name, drv->bus->name);
@@ -165,7 +172,7 @@ int driver_register(struct device_driver *drv)
 	    (drv->bus->shutdown && drv->shutdown))
 		printk(KERN_WARNING "Driver '%s' needs updating - please use "
 			"bus_type methods\n", drv->name);
-	// 通过它的名字来定位总线上的驱动程序。
+	// 通过它的名字来定位总线上的驱动程序。如果定位到，说明本驱动已经注册，就退出。
 	other = driver_find(drv->name, drv->bus);
 	if (other) {
 		printk(KERN_ERR "Error: Driver '%s' is already registered, "
@@ -173,14 +180,17 @@ int driver_register(struct device_driver *drv)
 		return -EBUSY;
 	}
 
+	// 将本驱动添加到总线，添加失败，就退出。
 	ret = bus_add_driver(drv);
 	if (ret)
 		return ret;
+	// 如果grop不为空的话，将在驱动文件夹下创建以group名字的子文件夹，然后在子文件夹下添加group的属性文件
 	ret = driver_add_groups(drv, drv->groups);
 	if (ret) {
 		bus_remove_driver(drv);
 		return ret;
 	}
+	// 通过发送一个uevent来通知用户空间
 	kobject_uevent(&drv->p->kobj, KOBJ_ADD);
 
 	return ret;

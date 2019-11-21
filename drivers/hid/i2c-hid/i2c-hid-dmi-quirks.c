@@ -2,7 +2,7 @@
 
 /*
  * Quirks for I2C-HID devices that do not supply proper descriptors
- *
+ * I2C-HID设备的奇怪之处是不能提供正确的描述符
  * Copyright (c) 2018 Julian Sax <jsbc@gmx.de>
  *
  */
@@ -34,7 +34,13 @@ struct i2c_hid_desc_override {
  * extracted by listening to the i2c-hid traffic that occurs between the
  * windows filter driver and the windows i2c-hid driver.
  */
-
+/*	
+* SIPODEV SP1064 touchpad的描述符	
+*
+* 该设备不提供任何描述符，在windows上，一个过滤驱动程序在i2c-hid层和设备之间操作，
+* 并在设备被提示时注入这些描述符。
+* 描述符是通过监听发生在windows过滤驱动程序和windows i2c-hid驱动程序之间的i2c-hid流量来提取的。
+*/
 static const struct i2c_hid_desc_override sipodev_desc = {
 	.i2c_hid_desc_buffer = (uint8_t [])
 	{0x1e, 0x00,                  /* Length of descriptor                 */

@@ -364,6 +364,7 @@ bool device_is_bound(struct device *dev)
 	return dev->p && klist_node_attached(&dev->p->knode_driver);
 }
 
+// 完成设备绑定到驱动;驱动绑定了设备。
 static void driver_bound(struct device *dev)
 {
 	if (device_is_bound(dev)) {
@@ -375,6 +376,7 @@ static void driver_bound(struct device *dev)
 	pr_debug("driver: '%s': %s: bound to device '%s'\n", dev->driver->name,
 		 __func__, dev_name(dev));
 
+	// 设备绑定到驱动;驱动绑定了设备。
 	klist_add_tail(&dev->p->knode_driver, &dev->driver->p->klist_devices);
 	device_links_driver_bound(dev);
 
@@ -489,6 +491,7 @@ static void driver_deferred_probe_add_trigger(struct device *dev,
 		driver_deferred_probe_trigger();
 }
 
+// 优先回调总线的 probe(或者驱动的probe),然后完成设备绑定到驱动;驱动绑定了设备。
 static int really_probe(struct device *dev, struct device_driver *drv)
 {
 	int ret = -EPROBE_DEFER;
@@ -547,10 +550,12 @@ re_probe:
 			goto probe_failed;
 	}
 
+	// 优先回调总线的 probe
 	if (dev->bus->probe) {
 		ret = dev->bus->probe(dev);
 		if (ret)
 			goto probe_failed;
+	// 其次回调驱动的 probe
 	} else if (drv->probe) {
 		ret = drv->probe(dev);
 		if (ret)
@@ -580,7 +585,7 @@ re_probe:
 
 	if (dev->pm_domain && dev->pm_domain->sync)
 		dev->pm_domain->sync(dev);
-
+	// 完成设备绑定到驱动;驱动绑定了设备。
 	driver_bound(dev);
 	ret = 1;
 	pr_debug("bus: '%s': %s: bound device %s to driver %s\n",
@@ -693,17 +698,18 @@ EXPORT_SYMBOL_GPL(wait_for_device_probe);
  * If the device has a parent, runtime-resume the parent before driver probing.
  */
 /**
-* driver_probe_device -尝试绑定设备和驱动程序在一起
+* driver_probe_device -尝试绑定设备和驱动程序在一起。（之前，必须保证设备与驱动已经匹配校验通过）
 * @drv:绑定设备的驱动程序
 * @dev:试图绑定到驱动程序的设备
 * 如果设备没有注册，这个函数返回-ENODEV;如果设备绑定成功，返回1;如果绑定失败，返回0。
+*
 * 必须在持有@dev锁的情况下调用此函数。当调用USB接口时，@dev->父锁也必须被持有。
 * 如果设备有一个父设备，在驱动程序探测之前，运行时-恢复父设备。
 */
 int driver_probe_device(struct device_driver *drv, struct device *dev)
 {
 	int ret = 0;
-	// 不注册不允许绑定。
+	// 设备未注册不允许绑定。
 	if (!device_is_registered(dev))
 		return -ENODEV;
 
@@ -718,6 +724,7 @@ int driver_probe_device(struct device_driver *drv, struct device *dev)
 	if (initcall_debug)
 		ret = really_probe_debug(dev, drv);
 	else
+		//优先回调总线的 probe(或者驱动的probe),然后完成设备绑定到驱动;驱动绑定了设备。
 		ret = really_probe(dev, drv);
 	pm_request_idle(dev);
 
@@ -989,7 +996,7 @@ static void __device_driver_unlock(struct device *dev, struct device *parent)
  * @dev->parent lock if needed.
  */
 /**
-将一个特定的驱动程序附加到一个特定的设备上
+* 将一个特定的驱动程序绑定附加到一个特定的设备上。（之前，必须保证设备与驱动已经匹配校验通过）
 * @drv:附加驱动程序
 * @dev:连接它的设备
 * 手动将驱动程序附加到设备上。将获得@dev锁和@dev->父锁，如果需要的话。
@@ -1004,8 +1011,9 @@ int device_driver_attach(struct device_driver *drv, struct device *dev)
 	 * If device has been removed or someone has already successfully
 	 * bound a driver before us just skip the driver probe call.
 	 */
-	// 如果设备已经被删除，或者在我们之前已经有人成功绑定了驱动程序，那么就跳过驱动程序探测调用。
+	// 如果设备未被删除，且在我们之前未有人成功绑定了驱动程序，那么才进行绑定。
 	if (!dev->p->dead && !dev->driver)
+		// 尝试绑定设备和驱动程序在一起。
 		ret = driver_probe_device(drv, dev);
 
 	__device_driver_unlock(dev, dev->parent);
@@ -1037,6 +1045,7 @@ static void __driver_attach_async_helper(void *_dev, async_cookie_t cookie)
 	put_device(dev);
 }
 
+// 判断设备与驱动是否匹配。然后完成绑定
 static int __driver_attach(struct device *dev, void *data)
 {
 	struct device_driver *drv = data;
@@ -1060,12 +1069,15 @@ static int __driver_attach(struct device *dev, void *data)
 	ret = driver_match_device(drv, dev);
 	if (ret == 0) {
 		/* no match */
+	    // 不匹配,退出
 		return 0;
 	} else if (ret == -EPROBE_DEFER) {
 		dev_dbg(dev, "Device match requests probe deferral\n");
+		// 设备匹配请求探测延迟
 		driver_deferred_probe_add(dev);
 	} else if (ret < 0) {
 		dev_dbg(dev, "Bus failed to match device: %d", ret);
+		// 总线未能匹配设备，退出
 		return ret;
 	} /* ret > 0 means positive match */
 
@@ -1088,7 +1100,7 @@ static int __driver_attach(struct device *dev, void *data)
 		return 0;
 	}
 
-	// 将一个特定的驱动程序附加到一个特定的设备上
+	// 若已经匹配。将一个特定的驱动程序附加到一个特定的设备上
 	device_driver_attach(drv, dev);
 
 	return 0;
@@ -1104,13 +1116,14 @@ static int __driver_attach(struct device *dev, void *data)
  * compatible pair.
  */
 /**
-* driver_attach -尝试绑定驱动到设备。
+* driver_attach -尝试将本驱动所在总线上所有的可匹配的设备绑定到本驱动。
 * @drv:司机。
 * 遍历总线上的设备列表，并将每个设备与驱动程序匹配。
 * 如果driver_probe_device()返回0，并且设置了@dev->驱动程序，我们就找到了一个兼容的对。
 */
 int driver_attach(struct device_driver *drv)
 {
+	// 遍历驱动所在总线上的所有设备，使用__driver_attach（）完成匹配和绑定。
 	return bus_for_each_dev(drv->bus, NULL, drv, __driver_attach);
 }
 EXPORT_SYMBOL_GPL(driver_attach);

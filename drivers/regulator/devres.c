@@ -142,6 +142,17 @@ static void devm_regulator_bulk_release(struct device *dev, void *res)
  * regulators cannot be acquired then any regulators that were
  * allocated will be freed before returning to the caller.
  */
+/**
+ devm_regulator_bulk_get - managed获取多个调节器消费者
+*
+* @dev:设备供应
+* @num_consumers:需要注册的消费者数量
+* @consumers:消费者配置;客户端存储在这里。
+*
+* @成功返回0，失败返回errno。
+*
+* 这个辅助功能允许驱动程序在一个操作中获得多个调节器消费者与管理，调节器将自动释放时，设备是unbound。如果任何监管机构不能被收购，那么任何被分配的监管机构将被释放，然后返回给调用者。
+*/
 int devm_regulator_bulk_get(struct device *dev, int num_consumers,
 			    struct regulator_bulk_data *consumers)
 {

@@ -368,6 +368,7 @@ do {										\
  * or the remaining jiffies (at least 1) if the @condition evaluated
  * to %true before the @timeout elapsed.
  */
+ // 休眠，直到条件变为真或超时结束
 #define wait_event_timeout(wq_head, condition, timeout)				\
 ({										\
 	long __ret = timeout;							\

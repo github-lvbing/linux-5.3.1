@@ -26,6 +26,8 @@
  * setting should be assumed to be "as already configured", which
  * may be as per machine or firmware initialisation.
  */
+// 这些对应于在linux/ iport .h中定义的IORESOURCE_IRQ_*来选择中断行行为。
+// 当请求中断而没有指定IRQF_TRIGGER时，应该假定设置为“已配置”，可能是机器或固件初始化设置
 #define IRQF_TRIGGER_NONE	0x00000000
 #define IRQF_TRIGGER_RISING	0x00000001
 #define IRQF_TRIGGER_FALLING	0x00000002
@@ -62,18 +64,19 @@
  *                wakeup devices users need to implement wakeup detection in
  *                their interrupt handlers.
  */
-#define IRQF_SHARED		0x00000080
-#define IRQF_PROBE_SHARED	0x00000100
-#define __IRQF_TIMER		0x00000200
-#define IRQF_PERCPU		0x00000400
-#define IRQF_NOBALANCING	0x00000800
-#define IRQF_IRQPOLL		0x00001000
-#define IRQF_ONESHOT		0x00002000
-#define IRQF_NO_SUSPEND		0x00004000
-#define IRQF_FORCE_RESUME	0x00008000
-#define IRQF_NO_THREAD		0x00010000
-#define IRQF_EARLY_RESUME	0x00020000
-#define IRQF_COND_SUSPEND	0x00040000
+ // 这些标记仅被内核用作irq处理例程的一部分。
+#define IRQF_SHARED		    0x00000080 // 允许在多个设备之间共享irq
+#define IRQF_PROBE_SHARED	0x00000100 // 当调用者期望发生共享不匹配时进行设置
+#define __IRQF_TIMER		0x00000200 // 标记此中断为计时器中断
+#define IRQF_PERCPU		    0x00000400 // 中断是每个cpu
+#define IRQF_NOBALANCING	0x00000800 // 从irq平衡中排除这个中断
+#define IRQF_IRQPOLL		0x00001000 // 中断用于轮询(出于性能原因，只考虑在共享中断中首先注册的中断)
+#define IRQF_ONESHOT		0x00002000 // 在hardirq处理程序完成后，不会重新启用中断。使用线程中断，需要保持irq线禁用，直到线程处理程序已经运行。
+#define IRQF_NO_SUSPEND		0x00004000 // 在挂起期间不要禁用这个IRQ。不保证此中断将把系统从挂起状态唤醒。看到文档/电力/ suspend-and-interrupts.rst
+#define IRQF_FORCE_RESUME	0x00008000 // 即使设置了IRQF_NO_SUSPEND，强制在恢复时启用它
+#define IRQF_NO_THREAD		0x00010000 // 无法线程化中断
+#define IRQF_EARLY_RESUME	0x00020000 // 在syscore中提前恢复IRQ，而不是在设备恢复时。
+#define IRQF_COND_SUSPEND	0x00040000 // 如果IRQ与NO_SUSPEND用户共享，则在暂停中断后执行这个中断处理程序。对于系统唤醒设备，用户需要在中断处理程序中实现唤醒检测。
 
 #define IRQF_TIMER		(__IRQF_TIMER | IRQF_NO_SUSPEND | IRQF_NO_THREAD)
 

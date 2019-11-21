@@ -141,7 +141,7 @@ struct irq_domain;
  * @ipi_offset:		Offset of first IPI target cpu in @affinity. Optional.
  */
 struct irq_common_data { // 所有irqchips共享的每个irq数据
-	unsigned int		__private state_use_accessors;  // irq芯片功能的状态信息。使用访问器函数来处理它
+	unsigned int		__private state_use_accessors;  // irq芯片功能的状态信息。使用访问器函数来处理它. eg: IRQD_TRIGGER_MASK
 #ifdef CONFIG_NUMA
 	unsigned int		node;         // 用于平衡的节点索引
 #endif
@@ -792,8 +792,10 @@ static inline struct msi_desc *irq_data_get_msi_desc(struct irq_data *d)
 	return d->common->msi_desc;
 }
 
+// 获得中断的触发类型
 static inline u32 irq_get_trigger_type(unsigned int irq)
 {
+	// 根据中断号 irq 获得对应的中断信息数据 struct irq_data
 	struct irq_data *d = irq_get_irq_data(irq);
 	return d ? irqd_get_trigger_type(d) : 0;
 }

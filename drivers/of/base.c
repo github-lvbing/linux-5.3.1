@@ -2184,6 +2184,11 @@ EXPORT_SYMBOL_GPL(of_alias_get_alias_list);
  * The function travels the lookup table to get the highest alias id for the
  * given alias stem.  It returns the alias id if found.
  */
+/**	
+* of_alias_get_highest_id -获取给定stem的最高别名id	
+* @stem:要检查的别名stem	
+* 该函数遍历查找表以获得给定别名的最高别名id。如果找到，它将返回别名id。	
+*/
 int of_alias_get_highest_id(const char *stem)
 {
 	struct alias_prop *app;

@@ -636,6 +636,14 @@ EXPORT_SYMBOL_GPL(kobject_uevent_env);
  * Returns 0 if kobject_uevent() is completed with success or the
  * corresponding error when it fails.
  */
+/**	
+* kobject_uevent—通过发送一个uevent来通知用户空间	
+*	
+* @kobj: struct kobject，动作正在发生
+* @action:正在发生的动作	
+*	
+* 如果kobject_uevent()成功完成，则返回0;如果失败，则返回相应的错误。
+*/
 int kobject_uevent(struct kobject *kobj, enum kobject_action action)
 {
 	return kobject_uevent_env(kobj, action, NULL);

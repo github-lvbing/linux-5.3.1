@@ -310,7 +310,7 @@ struct i2c_driver {
 	int (*command)(struct i2c_client *client, unsigned int cmd, void *arg);
 
 	struct device_driver driver;
-	const struct i2c_device_id *id_table;
+	const struct i2c_device_id *id_table; // 该驱动程序支持的I2C设备列表
 
 	/* Device detection callback for automatic device creation */
 	// 用于自动设备创建的设备检测回调
@@ -394,11 +394,13 @@ static inline struct i2c_client *kobj_to_i2c_client(struct kobject *kobj)
 	return to_i2c_client(dev);
 }
 
+// 获得i2c设备的驱动的数据           struct i2c_client->struct device->void	 *driver_data。
 static inline void *i2c_get_clientdata(const struct i2c_client *dev)
 {
 	return dev_get_drvdata(&dev->dev);
 }
 
+// 将data 记录在 struct i2c_client  dev->dev->driver_data（设备的驱动数据）中。
 static inline void i2c_set_clientdata(struct i2c_client *dev, void *data)
 {
 	dev_set_drvdata(&dev->dev, data);
@@ -610,13 +612,13 @@ struct i2c_algorithm {
 	int (*master_xfer)(struct i2c_adapter *adap, struct i2c_msg *msgs,
 			   int num);
 	int (*master_xfer_atomic)(struct i2c_adapter *adap,
-				   struct i2c_msg *msgs, int num);
+				   struct i2c_msg *msgs, int num);      // 只有使用原子上下文
 	int (*smbus_xfer)(struct i2c_adapter *adap, u16 addr,
 			  unsigned short flags, char read_write,
 			  u8 command, int size, union i2c_smbus_data *data);
 	int (*smbus_xfer_atomic)(struct i2c_adapter *adap, u16 addr,
 				 unsigned short flags, char read_write,
-				 u8 command, int size, union i2c_smbus_data *data);
+				 u8 command, int size, union i2c_smbus_data *data);  // 只有使用原子上下文
 
 	/* To determine what the adapter supports */
     // 以确定适配器支持什么
@@ -746,9 +748,23 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap);
  * been broken out into smaller bits like write-first and read-second which can
  * be combined as needed.
  */
-
+/**
+* struct i2c_adapter_quirks -描述i2c适配器的缺陷
+* @flags:查看I2C_AQ_*以获得可能的标志，并在下面阅读
+* @max_num_msgs:每次传输的最大消息数
+* @max_write_len:写消息的最大长度
+* @max_read_len:读取消息的最大长度
+* @max_comb_1st_msg_len:合并消息中第一个msg的最大长度
+* @max_comb_2nd_msg_len:合并消息中第二个msg的最大长度
+*
+* 合并消息注意:一些I2C控制器每次传输只能发送一条消息，另外还有所谓的“合并消息”或“先写后读”功能。
+* 这(通常)是一条小的写消息和一条读消息，几乎不足以访问基于寄存器的设备(如EEPROMs)。
+* 有一个标志支持这种模式。它意味着max_num_msg = 2，并使用max_comb_*_len进行长度检查，因为组合消息模式通常有其自身的限制。
+* 由于HW实现，一些控制器实际上可以执行write-then-anything或其他变体。
+* 为了支持这一点，write-then-read被分解成更小的部分，比如write-first和read-second，可以根据需要组合。
+*/
 struct i2c_adapter_quirks {
-	u64 flags;
+	u64 flags;   // eg: I2C_AQ_COMB
 	int max_num_msgs;
 	u16 max_write_len;
 	u16 max_read_len;
@@ -757,19 +773,19 @@ struct i2c_adapter_quirks {
 };
 
 /* enforce max_num_msgs = 2 and use max_comb_*_len for length checks */
-#define I2C_AQ_COMB			BIT(0)
+#define I2C_AQ_COMB			BIT(0)          // 执行max_num_msgs = 2并使用max_comb_*_len进行长度检查
 /* first combined message must be write */
-#define I2C_AQ_COMB_WRITE_FIRST		BIT(1)
+#define I2C_AQ_COMB_WRITE_FIRST		BIT(1)  // 首先必须写入合并的消息
 /* second combined message must be read */
-#define I2C_AQ_COMB_READ_SECOND		BIT(2)
+#define I2C_AQ_COMB_READ_SECOND		BIT(2)  // 必须读取第二个组合消息
 /* both combined messages must have the same target address */
-#define I2C_AQ_COMB_SAME_ADDR		BIT(3)
+#define I2C_AQ_COMB_SAME_ADDR		BIT(3)  // 两个组合消息必须具有相同的目标地址
 /* convenience macro for typical write-then read case */
 #define I2C_AQ_COMB_WRITE_THEN_READ	(I2C_AQ_COMB | I2C_AQ_COMB_WRITE_FIRST | \
-					 I2C_AQ_COMB_READ_SECOND | I2C_AQ_COMB_SAME_ADDR)
+					 I2C_AQ_COMB_READ_SECOND | I2C_AQ_COMB_SAME_ADDR)  // 方便宏为典型的写然后读的情况
 /* clock stretching is not supported */
-#define I2C_AQ_NO_CLK_STRETCH		BIT(4)
-/* message cannot have length of 0 */
+#define I2C_AQ_NO_CLK_STRETCH		BIT(4)   // 不支持时钟拉伸
+/* message cannot have length of 0 */        // 消息的长度不能为0
 #define I2C_AQ_NO_ZERO_LEN_READ		BIT(5)
 #define I2C_AQ_NO_ZERO_LEN_WRITE	BIT(6)
 #define I2C_AQ_NO_ZERO_LEN		(I2C_AQ_NO_ZERO_LEN_READ | I2C_AQ_NO_ZERO_LEN_WRITE)
@@ -794,9 +810,9 @@ struct i2c_adapter {
 	struct rt_mutex mux_lock;
 
 	int timeout;			/* in jiffies */
-	int retries;
+	int retries;            // 重试次数
 	struct device dev;		/* the adapter device */  //适配器设备
-	unsigned long locked_flags;	/* owned by the I2C core */ // 属于I2C核心
+	unsigned long locked_flags;	/* owned by the I2C core */ // 属于I2C核心, eg: I2C_ALF_IS_SUSPENDED
 #define I2C_ALF_IS_SUSPENDED		0
 #define I2C_ALF_SUSPEND_REPORTED	1
 
@@ -808,7 +824,7 @@ struct i2c_adapter {
 	struct list_head userspace_clients;
 
 	struct i2c_bus_recovery_info *bus_recovery_info;
-	const struct i2c_adapter_quirks *quirks;
+	const struct i2c_adapter_quirks *quirks; // 描述i2c适配器的缺陷
 
 	struct irq_domain *host_notify_domain;
 };
@@ -851,6 +867,13 @@ int i2c_for_each_dev(void *data, int (*fn)(struct device *dev, void *data));
  * @flags: I2C_LOCK_ROOT_ADAPTER locks the root i2c adapter, I2C_LOCK_SEGMENT
  *	locks only this branch in the adapter tree
  */
+/**
+* i2c_lock_bus -获得对I2C总线段的独占访问
+* @adapter:目标I2C总线段
+* @flags: I2C_LOCK_ROOT_ADAPTER锁定根i2c适配器I2C_LOCK_SEGMENT
+*
+* 只锁定适配器树中的这个分支
+*/
 static inline void
 i2c_lock_bus(struct i2c_adapter *adapter, unsigned int flags)
 {
@@ -877,6 +900,13 @@ i2c_trylock_bus(struct i2c_adapter *adapter, unsigned int flags)
  * @flags: I2C_LOCK_ROOT_ADAPTER unlocks the root i2c adapter, I2C_LOCK_SEGMENT
  *	unlocks only this branch in the adapter tree
  */
+/**
+* i2c_unlock_bus -释放对I2C总线段的独占访问
+* @adapter:目标I2C总线段
+* @flags: I2C_LOCK_ROOT_ADAPTER解锁根i2c适配器I2C_LOCK_SEGMENT
+* 
+* 只解锁适配器树中的这个分支
+*/
 static inline void
 i2c_unlock_bus(struct i2c_adapter *adapter, unsigned int flags)
 {
@@ -943,6 +973,7 @@ extern int i2c_register_driver(struct module *owner, struct i2c_driver *driver);
 extern void i2c_del_driver(struct i2c_driver *driver);
 
 /* use a define to avoid include chaining to get THIS_MODULE */
+// 使用定义来避免包含获取THIS_MODULE的链接
 #define i2c_add_driver(driver) \
 	i2c_register_driver(THIS_MODULE, driver)
 

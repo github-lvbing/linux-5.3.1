@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * I2C slave mode EEPROM simulator
+ * I2C slave mode EEPROM simulator  I2C从模式EEPROM模拟器
  *
  * Copyright (C) 2014 by Wolfram Sang, Sang Engineering <wsa@sang-engineering.com>
  * Copyright (C) 2014 by Renesas Electronics Corporation
@@ -9,6 +9,10 @@
  * driver does not support simulating EEPROM types which take more than one
  * address. It is prepared to simulate bigger EEPROMs with an internal 16 bit
  * pointer, yet implementation is deferred until the need actually arises.
+ */
+ /*
+ 因为大多数IP块只能检测一个I2C从地址，所以这个驱动程序不支持模拟多个地址的EEPROM类型。
+ 它准备使用内部16位指针来模拟更大的eeprom，但是实现被推迟到真正需要的时候。
  */
 
 #include <linux/i2c.h>

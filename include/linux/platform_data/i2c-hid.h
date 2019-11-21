@@ -32,6 +32,19 @@
  *	gpio_request(intr_gpio, "elan-irq");
  *	s3c_gpio_setpull(intr_gpio, S3C_GPIO_PULL_UP);
  */
+/**
+* struct i2chid_platform_data -用于i2c实现。
+* @hid_descriptor_address:存储HID描述符的i2c寄存器。
+* @supplies:为设备供电的调节器。
+* @post_power_delay_ms:在设备可用之前，打开电源后的延迟。
+*
+* 请注意，平台驱动程序(或acpi 5.0驱动程序，或扁平设备树)负责在结构i2c_board_info中设置与gpio相关的irq。
+* 平台驱动还应该根据设备设置gpio:
+一个典型的例子如下:
+* irq = gpio_to_irq(intr_gpio);
+* hkdk4412_i2c_devs5[0].irq = irq;  //将irq保存在i2c_board_info gpio_request中(intr_gpio， "elan-irq");
+* s3c_gpio_setpull (intr_gpio S3C_GPIO_PULL_UP);
+*/
 struct i2c_hid_platform_data {
 	u16 hid_descriptor_address;
 	struct regulator_bulk_data supplies[2];

@@ -38,6 +38,7 @@ static struct kset *system_kset;
 static int __must_check bus_rescan_devices_helper(struct device *dev,
 						void *data);
 
+// 增加bus的引用计数。
 static struct bus_type *bus_get(struct bus_type *bus)
 {
 	if (bus) {
@@ -175,6 +176,7 @@ static const struct kset_uevent_ops bus_uevent_ops = {
 	.filter = bus_uevent_filter,
 };
 
+// 会在 int __init buses_init(void) 中初始化
 static struct kset *bus_kset;
 
 /* Manually detach a device from its associated driver. */
@@ -301,6 +303,8 @@ static struct device *next_device(struct klist_iter *i)
 * 注意:返回非零值的设备不会以任何方式保留，其refcount也不会增加。
 * 如果调用者需要保留这些数据，它应该这样做，并在提供的回调中增加引用计数。
 */
+// 遍历总线bus上的所有设备，将data作为参数回调接口fn。
+// 接口fn若返回非0（error）获得遍历完，就退出，返回非0错误码。
 int bus_for_each_dev(struct bus_type *bus, struct device *start,
 		     void *data, int (*fn)(struct device *, void *))
 {
@@ -644,45 +648,59 @@ static DRIVER_ATTR_WO(uevent);
 * bus_add_driver -向总线添加一个驱动程序。
 * @drv:driver。
 */
+// 向总线添加一个驱动程序。并尝试将本驱动所在总线上所有的可匹配的设备绑定到本驱动。
 int bus_add_driver(struct device_driver *drv)
 {
 	struct bus_type *bus;
 	struct driver_private *priv;
 	int error = 0;
 
+	//  增加bus的引用计数
 	bus = bus_get(drv->bus);
 	if (!bus)
 		return -EINVAL;
 
 	pr_debug("bus: '%s': add driver %s\n", bus->name, drv->name);
 
+	// 分配驱动的私有数据结构
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		error = -ENOMEM;
 		goto out_put_bus;
 	}
+
+	// 初始化本驱动的，用于管理设备的链表头。
 	klist_init(&priv->klist_devices, NULL, NULL);
+	// 完成驱动结构与 驱动私有数据结构的相互关联。
 	priv->driver = drv;
 	drv->p = priv;
+	
+	//指定驱动的struct kobject 归于总线struct driver_private->struct kset *drivers_kset;
 	priv->kobj.kset = bus->p->drivers_kset;
+	// 初始化 驱动私有数据结构中的struct kobject kobj对象。
 	error = kobject_init_and_add(&priv->kobj, &driver_ktype, NULL,
 				     "%s", drv->name);
 	if (error)
 		goto out_unregister;
-
+	// 将驱动注册到总线驱动管理链表。
 	klist_add_tail(&priv->knode_bus, &bus->p->klist_drivers);
+	// 如适配器支持 驱动自动探测设备。
 	if (drv->bus->p->drivers_autoprobe) {
+		// 尝试将本驱动所在总线上所有的可匹配的设备绑定到本驱动。
 		error = driver_attach(drv);
 		if (error)
 			goto out_unregister;
 	}
 	module_add_driver(drv->owner, drv);
 
+	// 为驱动程序创建sysfs文件。
 	error = driver_create_file(drv, &driver_attr_uevent);
 	if (error) {
 		printk(KERN_ERR "%s: uevent attr (%s) failed\n",
 			__func__, drv->name);
 	}
+
+	// 在驱动文件夹下创建以group名字的子文件夹，然后在子文件夹下添加group的属性文件
 	error = driver_add_groups(drv, bus->drv_groups);
 	if (error) {
 		/* How the hell do we get out of this pickle? Give up */
@@ -852,29 +870,40 @@ static struct bus_attribute bus_attr_uevent = __ATTR(uevent, S_IWUSR, NULL,
  * infrastructure, then register the children subsystems it has:
  * the devices and drivers that belong to the subsystem.
  */
+/**
+* bus_register—注册一个驱动核心子系统
+* @bus: bus to register
+*
+* 一旦我们有了这些，我们就在kobject基础设施中注册总线，然后注册它的子子系统:属于子系统的设备和驱动程序。	
+*/
 int bus_register(struct bus_type *bus)
 {
 	int retval;
 	struct subsys_private *priv;
 	struct lock_class_key *key = &bus->lock_key;
 
+	// 分配总线子系统私有数据结构体对象。
 	priv = kzalloc(sizeof(struct subsys_private), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
+	// 完成总线子系统私有数据结构体对象 和 总线对象的相互关联。
 	priv->bus = bus;
 	bus->p = priv;
 
+	// 初始化 总线通知器列表
 	BLOCKING_INIT_NOTIFIER_HEAD(&priv->bus_notifier);
 
 	retval = kobject_set_name(&priv->subsys.kobj, "%s", bus->name);
 	if (retval)
 		goto out;
 
+	// 指定基类 kobject的类型
 	priv->subsys.kobj.kset = bus_kset;
 	priv->subsys.kobj.ktype = &bus_ktype;
 	priv->drivers_autoprobe = 1;
 
+	// 注册子系统到内核
 	retval = kset_register(&priv->subsys);
 	if (retval)
 		goto out;

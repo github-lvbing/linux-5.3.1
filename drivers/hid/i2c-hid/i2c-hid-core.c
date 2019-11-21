@@ -46,11 +46,12 @@
 #include "i2c-hid.h"
 
 /* quirks to control the device */
+// 控制设备的 quirks
 #define I2C_HID_QUIRK_SET_PWR_WAKEUP_DEV	BIT(0)
 #define I2C_HID_QUIRK_NO_IRQ_AFTER_RESET	BIT(1)
-#define I2C_HID_QUIRK_NO_RUNTIME_PM		BIT(2)
+#define I2C_HID_QUIRK_NO_RUNTIME_PM		    BIT(2)
 #define I2C_HID_QUIRK_DELAY_AFTER_SLEEP		BIT(3)
-#define I2C_HID_QUIRK_BOGUS_IRQ			BIT(4)
+#define I2C_HID_QUIRK_BOGUS_IRQ			    BIT(4)
 
 /* flags */
 #define I2C_HID_STARTED		0
@@ -71,54 +72,57 @@ do {									  \
 		dev_printk(KERN_DEBUG, &(ihid)->client->dev, fmt, ##arg); \
 } while (0)
 
-struct i2c_hid_desc {
-	__le16 wHIDDescLength;
-	__le16 bcdVersion;
-	__le16 wReportDescLength;
-	__le16 wReportDescRegister;
-	__le16 wInputRegister;
-	__le16 wMaxInputLength;
-	__le16 wOutputRegister;
-	__le16 wMaxOutputLength;
-	__le16 wCommandRegister;
-	__le16 wDataRegister;
-	__le16 wVendorID;
-	__le16 wProductID;
-	__le16 wVersionID;
-	__le32 reserved;
+struct i2c_hid_desc { //下表显示了所需的 I2C HID 描述符。
+	__le16 wHIDDescLength;     // 	2 	完整的 HID 说明符 （以字节为单位） 的长度。(也就是本结构 30byte)
+	__le16 bcdVersion;         // 	2 	版本号，是二进制编码的十进制 (BCD) 格式。
+	__le16 wReportDescLength;  // 	2 	（以字节为单位） 的报告描述符的长度。
+	__le16 wReportDescRegister;// 	2 	包含报表描述符的寄存器索引。
+	__le16 wInputRegister;     // 	2 	要读取输入的报表 （位于无符号字节为单位） 的注册号。
+	__le16 wMaxInputLength;    //  2 	要从输入寄存器中读取的最大输入报表的长度。
+	__le16 wOutputRegister;    //  2 	要将输出发送 （以无符号字节为单位） 的注册号。
+	__le16 wMaxOutputLength;   //  2 	要发送的最大输出报表的长度。
+	__le16 wCommandRegister;   //  2 	要发送命令请求 （无符号字节为单位） 的注册号。
+	__le16 wDataRegister;      //  2 	寄存器号与命令请求数 （以无符号字节为单位） 交换数据。
+	__le16 wVendorID;          //  2 	USB-如果分配供应商 id。
+	__le16 wProductID;         //  2 	设备 ID。
+	__le16 wVersionID;         //	2 	固件版本的版本号。
+	__le32 reserved;           //   4
 } __packed;
 
 struct i2c_hid_cmd {
-	unsigned int registerIndex;
+	unsigned int registerIndex;  // struct i2c_hid_desc中的一个索引值
 	__u8 opcode;
-	unsigned int length;
+	unsigned int length;    // registerIndex 开始到结束的长度
 	bool wait;
 };
 
+// HID i2c 要发送cmd的数据序列
 union command {
 	u8 data[0];
 	struct cmd {
-		__le16 reg;
-		__u8 reportTypeID;
-		__u8 opcode;
+		__le16 reg;         // 寄存器的位置。
+		__u8 reportTypeID;  // reportID | reportType << 4;
+		__u8 opcode;        // 操作码
 	} __packed c;
 };
 
 #define I2C_HID_CMD(opcode_) \
-	.opcode = opcode_, .length = 4, \
+	.opcode = opcode_,  \
+	.length = 4, \
 	.registerIndex = offsetof(struct i2c_hid_desc, wCommandRegister)
 
 /* fetch HID descriptor */
+// 获取 HID 描述符
 static const struct i2c_hid_cmd hid_descr_cmd = { .length = 2 };
 /* fetch report descriptors */
+// 获得 report 描述符
 static const struct i2c_hid_cmd hid_report_descr_cmd = {
 		.registerIndex = offsetof(struct i2c_hid_desc,
 			wReportDescRegister),
 		.opcode = 0x00,
 		.length = 2 };
 /* commands */
-static const struct i2c_hid_cmd hid_reset_cmd =		{ I2C_HID_CMD(0x01),
-							  .wait = true };
+static const struct i2c_hid_cmd hid_reset_cmd =	{ I2C_HID_CMD(0x01), .wait = true };
 static const struct i2c_hid_cmd hid_get_report_cmd =	{ I2C_HID_CMD(0x02) };
 static const struct i2c_hid_cmd hid_set_report_cmd =	{ I2C_HID_CMD(0x03) };
 static const struct i2c_hid_cmd hid_set_power_cmd =	{ I2C_HID_CMD(0x08) };
@@ -134,29 +138,30 @@ static const struct i2c_hid_cmd hid_no_cmd =		{ .length = 0 };
  * static const struct i2c_hid_cmd hid_set_protocol_cmd = { I2C_HID_CMD(0x07) };
  */
 
-/* The main device structure */
+/* The main device structure  主要设备结构 */
 struct i2c_hid {
-	struct i2c_client	*client;	/* i2c client */
-	struct hid_device	*hid;	/* pointer to corresponding HID dev */
+	struct i2c_client	*client;	/* i2c client */  // 记录i2c客户
+	struct hid_device	*hid;	/* pointer to corresponding HID dev */ // 指向相应的HID dev的指针
 	union {
 		__u8 hdesc_buffer[sizeof(struct i2c_hid_desc)];
-		struct i2c_hid_desc hdesc;	/* the HID Descriptor */
+		struct i2c_hid_desc hdesc;	/* the HID Descriptor */ // HID 描述符
 	};
-	__le16			wHIDDescRegister; /* location of the i2c
+	__le16	 wHIDDescRegister; /* location of the i2c
 						   * register of the HID
-						   * descriptor. */
-	unsigned int		bufsize;	/* i2c buffer size */
-	u8			*inbuf;		/* Input buffer */
-	u8			*rawbuf;	/* Raw Input buffer */
-	u8			*cmdbuf;	/* Command buffer */
-	u8			*argsbuf;	/* Command arguments buffer */
+						   * descriptor. */  // HID 描述符的i2c寄存器的位置。
+						   // cpu_to_le16(ihid->pdata.hid_descriptor_address)
+	unsigned int		bufsize;	/* i2c buffer size */ // i2c缓冲区大小
+	u8			*inbuf;		/* Input buffer */     // 输入缓冲区
+	u8			*rawbuf;	/* Raw Input buffer */ // 原始输入缓冲区
+	u8			*cmdbuf;	/* Command buffer */   // 命令缓冲区
+	u8			*argsbuf;	/* Command arguments buffer */ // 命令参数的缓冲区
 
-	unsigned long		flags;		/* device flags */
-	unsigned long		quirks;		/* Various quirks */
+	unsigned long		flags;		/* device flags */   // 设备标志.eg: I2C_HID_READ_PENDING.(__i2c_hid_command)
+	unsigned long		quirks;		/* Various quirks */ // 各种怪癖.eg: I2C_HID_QUIRK_SET_PWR_WAKEUP_DEV.  i2c_hid_quirks
 
-	wait_queue_head_t	wait;		/* For waiting the interrupt */
+	wait_queue_head_t	wait;		/* For waiting the interrupt */ // 等待中断的队列
 
-	struct i2c_hid_platform_data pdata;
+	struct i2c_hid_platform_data pdata;  // 设备平台数据
 
 	bool			irq_wake_enabled;
 	struct mutex		reset_lock;
@@ -194,6 +199,13 @@ static const struct i2c_hid_quirks {
  *
  * Returns: a u32 quirks value.
  */
+/*
+* i2c_hid_lookup_quirk:返回与I2C HID设备相关的任何异常
+* @idVendor: 16位供应商ID
+* @idProduct: 16位产品ID
+*
+*返回:一个u32怪癖值。
+*/
 static u32 i2c_hid_lookup_quirk(const u16 idVendor, const u16 idProduct)
 {
 	u32 quirks = 0;
@@ -208,6 +220,16 @@ static u32 i2c_hid_lookup_quirk(const u16 idVendor, const u16 idProduct)
 	return quirks;
 }
 
+/*  发送 HID 命令，并获得响应数据。
+struct i2c_client *client,
+const struct i2c_hid_cmd *command,  // 要发送的 HID 命令头
+u8 reportID,           // ID
+u8 reportType,         // Type
+u8 *args,              // 要发送的 HID 命令头后的数据
+int args_len,          // 要发送的 HID 命令头后的数据的长度
+unsigned char *buf_recv,   // 要接受数据缓存区
+int data_len               // 要接收多长的数据
+*/
 static int __i2c_hid_command(struct i2c_client *client,
 		const struct i2c_hid_cmd *command, u8 reportID,
 		u8 reportType, u8 *args, int args_len,
@@ -224,6 +246,7 @@ static int __i2c_hid_command(struct i2c_client *client,
 	unsigned int registerIndex = command->registerIndex;
 
 	/* special case for hid_descr_cmd */
+	// 若cmd是 获取 HID 描述符 的特殊情况
 	if (command == &hid_descr_cmd) {
 		cmd->c.reg = ihid->wHIDDescRegister;
 	} else {
@@ -236,28 +259,31 @@ static int __i2c_hid_command(struct i2c_client *client,
 		cmd->c.reportTypeID = reportID | reportType << 4;
 	}
 
+	// cmd->data  为将要发送的数据暂存区。length 为数据暂存区中数据的长度。
 	memcpy(cmd->data + length, args, args_len);
 	length += args_len;
 
 	i2c_hid_dbg(ihid, "%s: cmd=%*ph\n", __func__, length, cmd->data);
 
+	// 构建 i2c 要传输的 信息 struct i2c_msg。
 	msg[0].addr = client->addr;
-	msg[0].flags = client->flags & I2C_M_TEN;
-	msg[0].len = length;
-	msg[0].buf = cmd->data;
+	msg[0].flags = client->flags & I2C_M_TEN; // 告知地址是否是10bit访问
+	msg[0].len = length;   // 要写的长度（默认操作是写）
+	msg[0].buf = cmd->data;// 要写的数据地址
 	if (data_len > 0) {
 		msg[1].addr = client->addr;
 		msg[1].flags = client->flags & I2C_M_TEN;
-		msg[1].flags |= I2C_M_RD;
-		msg[1].len = data_len;
-		msg[1].buf = buf_recv;
-		msg_num = 2;
+		msg[1].flags |= I2C_M_RD; // 操作是读
+		msg[1].len = data_len;   // 要读的长度
+		msg[1].buf = buf_recv;   // 要读的数据缓存地址
+		msg_num = 2;// 告知有几个传输的信息结构
 		set_bit(I2C_HID_READ_PENDING, &ihid->flags);
 	}
 
 	if (wait)
 		set_bit(I2C_HID_RESET_PENDING, &ihid->flags);
 
+	// 开始访问i2c设备
 	ret = i2c_transfer(client->adapter, msg, msg_num);
 
 	if (data_len > 0)
@@ -272,6 +298,7 @@ static int __i2c_hid_command(struct i2c_client *client,
 		msleep(100);
 	} else if (wait) {
 		i2c_hid_dbg(ihid, "%s: waiting...\n", __func__);
+		// 主动休眠，直到条件变为真或超时结束
 		if (!wait_event_timeout(ihid->wait,
 				!test_bit(I2C_HID_RESET_PENDING, &ihid->flags),
 				msecs_to_jiffies(5000)))
@@ -329,6 +356,7 @@ static int i2c_hid_get_report(struct i2c_client *client, u8 reportType,
  * @len: size of buf
  * @use_data: true: use SET_REPORT HID command, false: send plain OUTPUT report
  */
+// 将传入的报告转发给设备
 static int i2c_hid_set_or_send_report(struct i2c_client *client, u8 reportType,
 		u8 reportID, unsigned char *buf, size_t data_len, bool use_data)
 {
@@ -367,6 +395,7 @@ static int i2c_hid_set_or_send_report(struct i2c_client *client, u8 reportType,
 	 * use the data register for feature reports or if the device does not
 	 * support the output register
 	 */
+	// 如果设备不支持输出寄存器，则使用数据寄存器生成功能报告
 	if (use_data) {
 		args[index++] = dataRegister & 0xFF;
 		args[index++] = dataRegister >> 8;
@@ -440,6 +469,7 @@ set_pwr_exit:
 	return ret;
 }
 
+// 给 HID 设备发送 硬件复位 CMD
 static int i2c_hid_hwreset(struct i2c_client *client)
 {
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
@@ -529,6 +559,7 @@ static void i2c_hid_get_input(struct i2c_hid *ihid)
 	return;
 }
 
+// HID 中断处理函数
 static irqreturn_t i2c_hid_irq(int irq, void *dev_id)
 {
 	struct i2c_hid *ihid = dev_id;
@@ -550,6 +581,7 @@ static int i2c_hid_get_report_length(struct hid_report *report)
 /*
  * Traverse the supplied list of reports and find the longest
  */
+// 遍历提供的报告列表，找到最长的
 static void i2c_hid_find_max_report(struct hid_device *hid, unsigned int type,
 		unsigned int *max)
 {
@@ -558,6 +590,7 @@ static void i2c_hid_find_max_report(struct hid_device *hid, unsigned int type,
 
 	/* We should not rely on wMaxInputLength, as some devices may set it to
 	 * a wrong length. */
+	// 我们不应该依赖于wMaxInputLength，因为一些设备可能会将其设置为错误的长度
 	list_for_each_entry(report, &hid->report_enum[type].report_list, list) {
 		size = i2c_hid_get_report_length(report);
 		if (*max < size)
@@ -577,16 +610,17 @@ static void i2c_hid_free_buffers(struct i2c_hid *ihid)
 	ihid->argsbuf = NULL;
 	ihid->bufsize = 0;
 }
-
+// 为 struct i2c_hid的inbuf、rawbuf、argsbuf、cmdbuf 分配空间。
 static int i2c_hid_alloc_buffers(struct i2c_hid *ihid, size_t report_size)
 {
 	/* the worst case is computed from the set_report command with a
 	 * reportID > 15 and the maximum report length */
-	int args_len = sizeof(__u8) + /* ReportID */
-		       sizeof(__u8) + /* optional ReportID byte */
-		       sizeof(__u16) + /* data register */
-		       sizeof(__u16) + /* size of the report */
-		       report_size; /* report */
+	// 最坏的情况是使用reporttid > 15和最大报告长度计算set_report命令
+	int args_len = sizeof(__u8) + /* ReportID  报告ID*/
+		       sizeof(__u8) +    /* optional ReportID byte 可选ReportID字节*/
+		       sizeof(__u16) +   /* data register 数据寄存器 */
+		       sizeof(__u16) +   /* size of the report 报告的大小 */
+		       report_size;      /* report 报告 */
 
 	ihid->inbuf = kzalloc(report_size, GFP_KERNEL);
 	ihid->rawbuf = kzalloc(report_size, GFP_KERNEL);
@@ -657,6 +691,7 @@ static int i2c_hid_output_raw_report(struct hid_device *hid, __u8 *buf,
 		count--;
 	}
 
+	// 将传入的报告转发给设备
 	ret = i2c_hid_set_or_send_report(client,
 				report_type == HID_FEATURE_REPORT ? 0x03 : 0x02,
 				report_id, buf, count, use_data);
@@ -705,6 +740,7 @@ static int i2c_hid_parse(struct hid_device *hid)
 
 	i2c_hid_dbg(ihid, "entering %s\n", __func__);
 
+	// 获得 报告描述符 的长度
 	rsize = le16_to_cpu(hdesc->wReportDescLength);
 	if (!rsize || rsize > HID_MAX_DESCRIPTOR_SIZE) {
 		dbg_hid("weird size of report descriptor (%u)\n", rsize);
@@ -712,6 +748,7 @@ static int i2c_hid_parse(struct hid_device *hid)
 	}
 
 	do {
+		// 给 HID 设备发送 硬件复位 CMD
 		ret = i2c_hid_hwreset(client);
 		if (ret)
 			msleep(1000);
@@ -736,6 +773,7 @@ static int i2c_hid_parse(struct hid_device *hid)
 
 		i2c_hid_dbg(ihid, "asking HID report descriptor\n");
 
+		// 获得 report 描述符 到 rdesc
 		ret = i2c_hid_command(client, &hid_report_descr_cmd,
 				      rdesc, rsize);
 		if (ret) {
@@ -747,6 +785,7 @@ static int i2c_hid_parse(struct hid_device *hid)
 
 	i2c_hid_dbg(ihid, "Report Descriptor: %*ph\n", rsize, rdesc);
 
+	// 解析 report 描述符 的数据到 struct hid_device->dev_rdesc;
 	ret = hid_parse_report(hid, rdesc, rsize);
 	if (!use_override)
 		kfree(rdesc);
@@ -844,6 +883,7 @@ struct hid_ll_driver i2c_hid_ll_driver = {
 };
 EXPORT_SYMBOL_GPL(i2c_hid_ll_driver);
 
+// 注册中断处理函数 i2c_hid_irq
 static int i2c_hid_init_irq(struct i2c_client *client)
 {
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
@@ -854,7 +894,7 @@ static int i2c_hid_init_irq(struct i2c_client *client)
 
 	if (!irq_get_trigger_type(client->irq))
 		irqflags = IRQF_TRIGGER_LOW;
-
+	// 分配中断线
 	ret = request_threaded_irq(client->irq, NULL, i2c_hid_irq,
 				   irqflags | IRQF_ONESHOT, client->name, ihid);
 	if (ret < 0) {
@@ -869,6 +909,7 @@ static int i2c_hid_init_irq(struct i2c_client *client)
 	return 0;
 }
 
+// 获得 i2c HID 描述符 到 struct i2c_hid->hdesc 即 (struct i2c_hid->hdesc_buffer)
 static int i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 {
 	struct i2c_client *client = ihid->client;
@@ -877,12 +918,14 @@ static int i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 	int ret;
 
 	/* i2c hid fetch using a fixed descriptor size (30 bytes) */
+	// 使用固定的描述符大小(30字节)进行i2c hid获取
 	if (i2c_hid_get_dmi_i2c_hid_desc_override(client->name)) {
 		i2c_hid_dbg(ihid, "Using a HID descriptor override\n");
 		ihid->hdesc =
 			*i2c_hid_get_dmi_i2c_hid_desc_override(client->name);
 	} else {
 		i2c_hid_dbg(ihid, "Fetching the HID descriptor\n");
+		// 发送获取 HID 描述符的cmd.
 		ret = i2c_hid_command(client, &hid_descr_cmd,
 				      ihid->hdesc_buffer,
 				      sizeof(struct i2c_hid_desc));
@@ -896,6 +939,10 @@ static int i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 	 * bytes 0-1 -> length
 	 * bytes 2-3 -> bcdVersion (has to be 1.00) */
 	/* check bcdVersion == 1.0 */
+	/*验证HID描述符的长度，前4个字节:	
+	* bytes 0-1 ->长度
+	* bytes 2-3-> bcdVersion(必须是1.00)*/
+	/*检查bcdVersion == 1.0*/
 	if (le16_to_cpu(hdesc->bcdVersion) != 0x0100) {
 		dev_err(&client->dev,
 			"unexpected HID descriptor bcdVersion (0x%04hx)\n",
@@ -904,6 +951,7 @@ static int i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 	}
 
 	/* Descriptor length should be 30 bytes as per the specification */
+	// 描述符长度应该是30字节
 	dsize = le16_to_cpu(hdesc->wHIDDescLength);
 	if (dsize != sizeof(struct i2c_hid_desc)) {
 		dev_err(&client->dev, "weird size of HID descriptor (%u)\n",
@@ -982,6 +1030,7 @@ static inline void i2c_hid_acpi_fix_up_power(struct device *dev) {}
 #endif
 
 #ifdef CONFIG_OF
+// 根据i2c_client的设备节点，获得 存储HID描述符的i2c寄存器。
 static int i2c_hid_of_probe(struct i2c_client *client,
 		struct i2c_hid_platform_data *pdata)
 {
@@ -989,6 +1038,7 @@ static int i2c_hid_of_probe(struct i2c_client *client,
 	u32 val;
 	int ret;
 
+	// 在设备树上获得 "hid-descr-addr" 属性值到 val
 	ret = of_property_read_u32(dev->of_node, "hid-descr-addr", &val);
 	if (ret) {
 		dev_err(&client->dev, "HID register address not provided\n");
@@ -999,11 +1049,13 @@ static int i2c_hid_of_probe(struct i2c_client *client,
 			val);
 		return -EINVAL;
 	}
+	// 保存"hid-descr-addr" 属性值
 	pdata->hid_descriptor_address = val;
 
 	return 0;
 }
 
+// 该驱动程序支持的I2C设备树列表
 static const struct of_device_id i2c_hid_of_match[] = {
 	{ .compatible = "hid-over-i2c" },
 	{},
@@ -1017,16 +1069,17 @@ static inline int i2c_hid_of_probe(struct i2c_client *client,
 }
 #endif
 
+// 在client设备树节点上获得 "post-power-on-delay-ms"  属性值到pdata
 static void i2c_hid_fwnode_probe(struct i2c_client *client,
 				 struct i2c_hid_platform_data *pdata)
 {
 	u32 val;
-
 	if (!device_property_read_u32(&client->dev, "post-power-on-delay-ms",
 				      &val))
 		pdata->post_power_delay_ms = val;
 }
 
+// 设备struct i2c_client 与驱动匹配上了
 static int i2c_hid_probe(struct i2c_client *client,
 			 const struct i2c_device_id *dev_id)
 {
@@ -1034,10 +1087,12 @@ static int i2c_hid_probe(struct i2c_client *client,
 	struct i2c_hid *ihid;
 	struct hid_device *hid;
 	__u16 hidRegister;
+	// 获得设备平台数据
 	struct i2c_hid_platform_data *platform_data = client->dev.platform_data;
 
 	dbg_hid("HID probe called for i2c 0x%02x\n", client->addr);
 
+	// 验证中断资源是否存在，和有效性
 	if (!client->irq) {
 		dev_err(&client->dev,
 			"HID over i2c has not been provided an Int IRQ\n");
@@ -1051,44 +1106,56 @@ static int i2c_hid_probe(struct i2c_client *client,
 		return client->irq;
 	}
 
+	// 分配 struct i2c_hid 对象 
 	ihid = devm_kzalloc(&client->dev, sizeof(*ihid), GFP_KERNEL);
 	if (!ihid)
 		return -ENOMEM;
 
+	// 根据i2c_client，获得 存储HID描述符的i2c寄存器。
 	if (client->dev.of_node) {
+		// 来自设备对应的设备树节点
 		ret = i2c_hid_of_probe(client, &ihid->pdata);
 		if (ret)
 			return ret;
 	} else if (!platform_data) {
+		// 来自 acpi
 		ret = i2c_hid_acpi_pdata(client, &ihid->pdata);
 		if (ret)
 			return ret;
 	} else {
+		// 来自 设备的平台数据
 		ihid->pdata = *platform_data;
 	}
 
 	/* Parse platform agnostic common properties from ACPI / device tree */
+	// 解析来自ACPI /设备树的平台无关的公共属性
+
+	// 在client设备树节点上获得 "post-power-on-delay-ms"  属性值到 &ihid->pdata
 	i2c_hid_fwnode_probe(client, &ihid->pdata);
 
 	ihid->pdata.supplies[0].supply = "vdd";
 	ihid->pdata.supplies[1].supply = "vddl";
 
+	//  managed获取多个调节器消费者
 	ret = devm_regulator_bulk_get(&client->dev,
 				      ARRAY_SIZE(ihid->pdata.supplies),
 				      ihid->pdata.supplies);
 	if (ret)
 		return ret;
 
+	// 启用多个调整器使用者
 	ret = regulator_bulk_enable(ARRAY_SIZE(ihid->pdata.supplies),
 				    ihid->pdata.supplies);
 	if (ret < 0)
 		return ret;
 
+	// 开始延时指定时间
 	if (ihid->pdata.post_power_delay_ms)
 		msleep(ihid->pdata.post_power_delay_ms);
 
+	// struct i2c_hid 记录在 i2c_client设备的驱动数据中。
 	i2c_set_clientdata(client, ihid);
-
+	// struct i2c_client 记录在i2c_hid中
 	ihid->client = client;
 
 	hidRegister = ihid->pdata.hid_descriptor_address;
@@ -1100,6 +1167,8 @@ static int i2c_hid_probe(struct i2c_client *client,
 	/* we need to allocate the command buffer without knowing the maximum
 	 * size of the reports. Let's use HID_MIN_BUFFER_SIZE, then we do the
 	 * real computation later. */
+	// 我们需要在不知道报表最大大小的情况下分配命令缓冲区。 让我们使用HID_MIN_BUFFER_SIZE，然后再进行真正的计算。
+	// 为 struct i2c_hid的inbuf、rawbuf、argsbuf、cmdbuf 分配空间
 	ret = i2c_hid_alloc_buffers(ihid, HID_MIN_BUFFER_SIZE);
 	if (ret < 0)
 		goto err_regulator;
@@ -1112,6 +1181,7 @@ static int i2c_hid_probe(struct i2c_client *client,
 	device_enable_async_suspend(&client->dev);
 
 	/* Make sure there is something at this address */
+	// 这个地址一定可以正常通信
 	ret = i2c_smbus_read_byte(client);
 	if (ret < 0) {
 		dev_dbg(&client->dev, "nothing at this address: %d\n", ret);
@@ -1119,14 +1189,17 @@ static int i2c_hid_probe(struct i2c_client *client,
 		goto err_pm;
 	}
 
+	// 获得 i2c HID 描述符
 	ret = i2c_hid_fetch_hid_descriptor(ihid);
 	if (ret < 0)
 		goto err_pm;
 
+	// 注册中断处理函数 i2c_hid_irq
 	ret = i2c_hid_init_irq(client);
 	if (ret < 0)
 		goto err_pm;
 
+	// 分配新的hid设备描述符	struct hid_device.
 	hid = hid_allocate_device();
 	if (IS_ERR(hid)) {
 		ret = PTR_ERR(hid);
@@ -1149,6 +1222,7 @@ static int i2c_hid_probe(struct i2c_client *client,
 
 	ihid->quirks = i2c_hid_lookup_quirk(hid->vendor, hid->product);
 
+	// 添加设备struct hid_device  到系统中
 	ret = hid_add_device(hid);
 	if (ret) {
 		if (ret != -ENODEV)
@@ -1293,7 +1367,7 @@ static int i2c_hid_resume(struct device *dev)
 	 * 2386:4B33 and fixes various SIS touchscreens no longer sending
 	 * data after a suspend/resume.
 	 */
-	ret = i2c_hid_set_power(client, I2C_HID_PWR_ON);
+	ret = i2c_hid_set_power(client, I2C_HIDWR_ON);
 	if (ret)
 		return ret;
 
@@ -1332,6 +1406,7 @@ static const struct dev_pm_ops i2c_hid_pm = {
 			   NULL)
 };
 
+// 该驱动程序支持的I2C设备列表
 static const struct i2c_device_id i2c_hid_id_table[] = {
 	{ "hid", 0 },
 	{ "hid-over-i2c", 0 },
@@ -1355,6 +1430,35 @@ static struct i2c_driver i2c_hid_driver = {
 };
 
 module_i2c_driver(i2c_hid_driver);
+/*
+等价于====
+static int __init i2c_hid_driver_init(void) 
+{ 
+	return i2c_add_driver(&(i2c_hid_driver)); 
+} 
+module_init(i2c_hid_driver_init); 
+static void __exit i2c_hid_driver_exit(void) 
+{ 
+	i2c_del_driver(&(i2c_hid_driver)); 
+} 
+module_exit(i2c_hid_driver_exit);
+----------------------
+#define module_i2c_driver(__i2c_driver) \
+	module_driver(__i2c_driver, i2c_add_driver, \
+			i2c_del_driver)
+----------------------
+#define module_driver(__driver, __register, __unregister, ...) \
+static int __init __driver##_init(void) \
+{ \
+	return __register(&(__driver) , ##__VA_ARGS__); \
+} \
+module_init(__driver##_init); \
+static void __exit __driver##_exit(void) \
+{ \
+	__unregister(&(__driver) , ##__VA_ARGS__); \
+} \
+module_exit(__driver##_exit);
+*/
 
 MODULE_DESCRIPTION("HID over I2C core driver");
 MODULE_AUTHOR("Benjamin Tissoires <benjamin.tissoires@gmail.com>");

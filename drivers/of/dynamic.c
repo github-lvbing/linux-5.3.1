@@ -116,12 +116,20 @@ int of_reconfig_notify(unsigned long action, struct of_reconfig_data *p)
  * Returns 0 on device going from enabled to disabled, 1 on device
  * going from disabled to enabled and -1 on no change.
  */
+/*
+* of_reconfig_get_state_change()——返回设备的新状态
+* @action -通知人的行动
+* @arg -通知者的参数
+*
+* 根据使用的通知程序返回设备的新状态。在设备从启用变为禁用时返回0，在设备从禁用变为启用时返回1，在没有更改时返回-1。
+*/
 int of_reconfig_get_state_change(unsigned long action, struct of_reconfig_data *pr)
 {
 	struct property *prop, *old_prop = NULL;
 	int is_status, status_state, old_status_state, prev_state, new_state;
 
 	/* figure out if a device should be created or destroyed */
+	// 弄清楚应该创建还是销毁设备
 	switch (action) {
 	case OF_RECONFIG_ATTACH_NODE:
 	case OF_RECONFIG_DETACH_NODE:

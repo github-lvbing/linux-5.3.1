@@ -1221,6 +1221,13 @@ static unsigned long hid_gets_squirk(const struct hid_device *hdev)
  *
  * Returns: an unsigned long quirks value.
  */
+/**
+* hid_lookup_quirk:返回与HID设备相关的任何异常
+* @hdev:要查找的HID设备
+*描述:
+* 给定一个HID设备，返回与该设备相关的任何异常。
+* 返回:一个无符号的长怪癖值。
+*/
 unsigned long hid_lookup_quirk(const struct hid_device *hdev)
 {
 	unsigned long quirks = 0;

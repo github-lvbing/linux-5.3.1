@@ -1972,6 +1972,30 @@ const void *free_nmi(unsigned int irq, void *dev_id)
  *	IRQF_TRIGGER_*		Specify active edge(s) or level
  *
  */
+/**
+* request_threaded_irq -分配中断线
+* @irq:进行分配的中断线
+* @handler: IRQ发生时调用的函数。如果线程中断的主处理程序为NULL和thread_fn != NULL，则安装默认的主处理程序	
+* @thread_fn:从irq处理程序线程调用的函数，如果为空，则不创建irq线程	
+* @irqflags:中断类型标志; eg : IRQF_ONESHOT
+* @devname:声明设备的ascii名称
+* @dev_id:返回给处理函数的cookie	
+* 这个调用分配中断资源，并启用中断线和IRQ处理。从这个调用开始，您的处理程序函数就可以被调用了。
+* 因为你的处理器函数必须清除任何由主板引起的中断，所以你必须小心初始化你的硬件，并按照正确的顺序设置中断处理器。
+*	
+* 如果你想为你的设备设置一个线程的irq处理器，那么你需要提供@handler和@thread_fn。@handler仍然在硬中断上下文中调用，必须检查中断是否来自设备。
+* 如果是，它需要禁用设备上的中断并返回IRQ_WAKE_THREAD，它将唤醒处理程序线程并运行
+* @thread_fn。这种分割处理程序设计对于支持共享中断是必要的。	
+*
+* dev_id必须是全局唯一的。通常使用设备数据结构的地址作为cookie。因为处理程序接收到这个值，所以使用它是有意义的。
+*	
+* 如果你的中断是共享的，你必须传递一个非空的dev_id，因为这是释放中断时需要的。
+*	
+* 标志:
+* IRQF_SHARED	    中断是共享的
+* IRQF_TRIGGER_*	 指定活动边缘或级别	
+*/
+
 int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 			 irq_handler_t thread_fn, unsigned long irqflags,
 			 const char *devname, void *dev_id)

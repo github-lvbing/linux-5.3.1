@@ -878,6 +878,13 @@ static int hid_scan_report(struct hid_device *hid)
  * Allocate the device report as read by the bus driver. This function should
  * only be called from parse() in ll drivers.
  */
+/**
+hid_parse_report -解析设备报告
+* @设备:hid设备
+* @start:报告开始
+* @size:报告大小
+*根据总线驱动程序读取的设备报告进行分配。这个函数只能在ll驱动程序中从parse()调用。
+*/
 int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size)
 {
 	hid->dev_rdesc = kmemdup(start, size, GFP_KERNEL);
@@ -1732,6 +1739,15 @@ EXPORT_SYMBOL_GPL(hid_report_raw_event);
  *
  * This is data entry for lower layers.
  */
+/**	
+* hid_input_report -报告数据来自低层(usb, bt…)
+* @hid: hid设备
+* @type: HID报告类型(HID_*_REPORT)
+* @data:报告内容
+* @size:数据参数的大小
+* @interrupt:区分中断和控制传输
+*这是低层的数据输入。	
+*/
 int hid_input_report(struct hid_device *hid, int type, u8 *data, u32 size, int interrupt)
 {
 	struct hid_report_enum *report_enum;
@@ -2300,6 +2316,7 @@ static int hid_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
+// hid总线对象。在 hid_allocate_device 中会使用。设备struct hid_device就在上面。
 struct bus_type hid_bus_type = {
 	.name		= "hid",
 	.dev_groups	= hid_dev_groups,
@@ -2311,6 +2328,7 @@ struct bus_type hid_bus_type = {
 };
 EXPORT_SYMBOL(hid_bus_type);
 
+// 添加设备struct hid_device  到系统中
 int hid_add_device(struct hid_device *hdev)
 {
 	static atomic_t id = ATOMIC_INIT(0);
@@ -2319,16 +2337,19 @@ int hid_add_device(struct hid_device *hdev)
 	if (WARN_ON(hdev->status & HID_STAT_ADDED))
 		return -EBUSY;
 
+	// 获得与HID设备相关的特性
 	hdev->quirks = hid_lookup_quirk(hdev);
 
 	/* we need to kill them here, otherwise they will stay allocated to
 	 * wait for coming driver */
+	// 们需要在这里干掉他们，否则他们会被分配去等待drive的到来
 	if (hid_ignore(hdev))
 		return -ENODEV;
 
 	/*
 	 * Check for the mandatory transport channel.
 	 */
+	 // 检查强制传输通道。
 	 if (!hdev->ll_driver->raw_request) {
 		hid_err(hdev, "transport driver missing .raw_request()\n");
 		return -EINVAL;
@@ -2338,6 +2359,7 @@ int hid_add_device(struct hid_device *hdev)
 	 * Read the device report descriptor once and use as template
 	 * for the driver-specific modifications.
 	 */
+	// 读取一次设备报告描述符，并将其用作驱动程序特定修改的模板。
 	ret = hdev->ll_driver->parse(hdev);
 	if (ret)
 		return ret;
@@ -2347,6 +2369,7 @@ int hid_add_device(struct hid_device *hdev)
 	/*
 	 * Scan generic devices for group information
 	 */
+	// 扫描通用设备获取组信息
 	if (hid_ignore_special_drivers) {
 		hdev->group = HID_GROUP_GENERIC;
 	} else if (!hdev->group &&
@@ -2358,10 +2381,12 @@ int hid_add_device(struct hid_device *hdev)
 
 	/* XXX hack, any other cleaner solution after the driver core
 	 * is converted to allow more than 20 bytes as the device name? */
+	// XXX黑客，有没有其他更清洁的解决方案后，驱动核心转换为允许超过20字节作为设备名称?
 	dev_set_name(&hdev->dev, "%04X:%04X:%04X.%04X", hdev->bus,
 		     hdev->vendor, hdev->product, atomic_inc_return(&id));
 
 	hid_debug_register(hdev, dev_name(&hdev->dev));
+	// 将设备添加到设备层次结构中。
 	ret = device_add(&hdev->dev);
 	if (!ret)
 		hdev->status |= HID_STAT_ADDED;
@@ -2381,6 +2406,13 @@ EXPORT_SYMBOL_GPL(hid_add_device);
  * New hid_device pointer is returned on success, otherwise ERR_PTR encoded
  * error value.
  */
+/**	
+* hid_allocate_device -分配新的hid设备描述符	
+*	
+* 分配和初始化hid设备，这样就可以使用hid_destroy_device来释放它。	
+*	
+* 新hid_device指针成功返回，否则ERR_PTR编码错误值。	
+*/
 struct hid_device *hid_allocate_device(void)
 {
 	struct hid_device *hdev;

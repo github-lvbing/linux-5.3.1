@@ -66,7 +66,7 @@ struct kobject {
 	const char		*name;
 	struct list_head	entry;
 	struct kobject		*parent;
-	struct kset		*kset;
+	struct kset		*kset;     //Ö¸Ïò struct subsys_private->struct kset *drivers_kset;  
 	struct kobj_type	*ktype;
 	struct kernfs_node	*sd; /* sysfs directory entry */
 	struct kref		kref;

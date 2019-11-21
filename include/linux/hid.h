@@ -491,7 +491,7 @@ struct hid_report_enum {
 	struct hid_report *report_id_hash[HID_MAX_IDS];
 };
 
-#define HID_MIN_BUFFER_SIZE	64		/* make sure there is at least a packet size of space */
+#define HID_MIN_BUFFER_SIZE	64		/* make sure there is at least a packet size of space 确保至少有一个数据包大小的空间*/
 #define HID_MAX_BUFFER_SIZE	4096		/* 4kb */
 #define HID_CONTROL_FIFO_SIZE	256		/* to init devices with >100 reports */
 #define HID_OUTPUT_FIFO_SIZE	64
@@ -551,11 +551,11 @@ struct hid_device {							/* device report descriptor */
 	unsigned collection_size;					/* Number of allocated hid_collections */
 	unsigned maxcollection;						/* Number of parsed collections */
 	unsigned maxapplication;					/* Number of applications */
-	__u16 bus;							/* BUS ID */
+	__u16 bus;							/* BUS ID */  // 设备的挂接总线类型 BUS_I2C  
 	__u16 group;							/* Report group */
-	__u32 vendor;							/* Vendor ID */
-	__u32 product;							/* Product ID */
-	__u32 version;							/* HID version */
+	__u32 vendor;							/* Vendor ID */  // 分配供应商 id。
+	__u32 product;							/* Product ID */  //设备 ID。
+	__u32 version;							/* HID version */  // HID 版本号
 	enum hid_type type;						/* device type (mouse, kbd, ...) */
 	unsigned country;						/* HID country */
 	struct hid_report_enum report_enum[HID_REPORT_TYPES];
@@ -595,7 +595,7 @@ struct hid_device {							/* device report descriptor */
 	void *hidraw;
 
 	char name[128];							/* Device name */
-	char phys[64];							/* Device physical location */
+	char phys[64];							/* Device physical location */  // 设备的物理位置,名字
 	char uniq[64];							/* Device unique identifier (serial #) */
 
 	void *driver_data;
@@ -793,6 +793,20 @@ struct hid_driver {
  * @output_report: send output report to device
  * @idle: send idle request to device
  */
+/**
+hid_ll_driver -低级别的驱动回调
+* @start:调用探针启动设备	
+* @stop:调用移除	
+* @open:由open上的输入层调用	
+* @close:被关闭的输入层调用	
+* @power:请求底层硬件进入请求的电源模式	
+* @parse:这个方法只调用一次来解析设备数据，不应该分配任何东西来避免内存泄漏	
+* @request:向设备发送报告请求(如功能报告)	
+* @wait:等待缓冲的io完成(发送/recv报告)	
+* @raw_request:将原始报告请求发送到设备(例如，功能报告)	
+* @output_report:将输出报告发送到设备	
+* @idle:向设备发送空闲请求	
+*/
 struct hid_ll_driver {
 	int (*start)(struct hid_device *hdev);
 	void (*stop)(struct hid_device *hdev);

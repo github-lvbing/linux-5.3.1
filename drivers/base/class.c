@@ -493,6 +493,12 @@ struct class_compat {
  * Compatibility class are meant as a temporary user-space compatibility
  * workaround when converting a family of class devices to a bus devices.
  */
+/*
+* class_compat_register—注册一个兼容性类	
+* @name:类的名称	
+*	
+* 兼容性类是指在将一个类设备族转换为总线设备时，临时的用户空间兼容性工作区。	
+*/
 struct class_compat *class_compat_register(const char *name)
 {
 	struct class_compat *cls;

@@ -37,14 +37,22 @@
  * The list of i2c_dev structures is parallel to the i2c_adapter lists
  * maintained by the driver model, and is updated using bus notifications.
  */
+/*
+* i2c_dev表示i2c_adapter…将与之交换消息的一个I2C或SMBus 的 master，而不是一个slave(i2c_client)。
+* 它与由用户模式驱动程序访问的字符特殊文件耦合。
+*
+* i2c_dev结构列表与驱动程序模型维护的i2c_adapter列表并行，并使用总线通知进行更新。
+*/
 struct i2c_dev {
-	struct list_head list;
+	struct list_head list;   // 链表节点，被全局 i2c_dev_list 管理。
 	struct i2c_adapter *adap;
 	struct device *dev;
 	struct cdev cdev;
 };
 
 #define I2C_MINORS	(MINORMASK + 1)
+
+// 链表头，用于管理 struct i2c_dev。
 static LIST_HEAD(i2c_dev_list);
 static DEFINE_SPINLOCK(i2c_dev_list_lock);
 
@@ -63,22 +71,26 @@ found:
 	return i2c_dev;
 }
 
+// 将 struct i2c_adapter 设备 字符设备化。
 static struct i2c_dev *get_free_i2c_dev(struct i2c_adapter *adap)
 {
 	struct i2c_dev *i2c_dev;
 
+	// 适配器的编号不应该大于字符设备的最大范围。
 	if (adap->nr >= I2C_MINORS) {
 		printk(KERN_ERR "i2c-dev: Out of device minors (%d)\n",
 		       adap->nr);
 		return ERR_PTR(-ENODEV);
 	}
 
+	// 分配一个字符设备对象。
 	i2c_dev = kzalloc(sizeof(*i2c_dev), GFP_KERNEL);
 	if (!i2c_dev)
 		return ERR_PTR(-ENOMEM);
 	i2c_dev->adap = adap;
 
 	spin_lock(&i2c_dev_list_lock);
+	// 将 i2c_dev 添加到 管理链表。
 	list_add_tail(&i2c_dev->list, &i2c_dev_list);
 	spin_unlock(&i2c_dev_list_lock);
 	return i2c_dev;
@@ -102,12 +114,32 @@ static ssize_t name_show(struct device *dev,
 	return sprintf(buf, "%s\n", i2c_dev->adap->name);
 }
 static DEVICE_ATTR_RO(name);
+/* static DEVICE_ATTR_RO(name); == 
+static	struct device_attribute dev_attr_name ={						 
+	.attr	 = { 
+		.name = __stringify(name), 
+		.mode = 0444 
+	},	 
+	.show	 = name_show,				
+}
+*/
 
 static struct attribute *i2c_attrs[] = {
 	&dev_attr_name.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(i2c);
+/*
+用于 static int __init i2c_dev_init(void) 
+include/linux/sysfs.h
+static const struct attribute_group i2c_group = {
+	.attrs = i2c_attrs,
+};
+static const struct attribute_group *i2c_groups[] = {
+	&i2c_group,
+	NULL,
+}
+*/
 
 /* ------------------------------------------------------------------------- */
 
@@ -230,6 +262,7 @@ static int i2cdev_check_addr(struct i2c_adapter *adapter, unsigned int addr)
 	return result;
 }
 
+// 完成i2c设备的读写操作
 static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
 		unsigned nmsgs, struct i2c_msg *msgs)
 {
@@ -404,7 +437,7 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (cmd == I2C_SLAVE && i2cdev_check_addr(client->adapter, arg))
 			return -EBUSY;
 		/* REVISIT: address could become busy later */
-		client->addr = arg;
+		client->addr = arg;  // 指定设备地址。
 		return 0;
 	case I2C_TENBIT:
 		if (arg)
@@ -425,7 +458,7 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		else
 			client->flags &= ~I2C_CLIENT_PEC;
 		return 0;
-	case I2C_FUNCS:
+	case I2C_FUNCS:  // 获取适配器的能力
 		funcs = i2c_get_functionality(client->adapter);
 		return put_user(funcs, (unsigned long __user *)arg);
 
@@ -462,13 +495,13 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					  data_arg.size,
 					  data_arg.data);
 	}
-	case I2C_RETRIES:
+	case I2C_RETRIES: // 设置重试次数
 		if (arg > INT_MAX)
 			return -EINVAL;
 
 		client->adapter->retries = arg;
 		break;
-	case I2C_TIMEOUT:
+	case I2C_TIMEOUT:  // 设置延时
 		if (arg > INT_MAX)
 			return -EINVAL;
 
@@ -572,12 +605,15 @@ static long compat_i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned lo
 #define compat_i2cdev_ioctl NULL
 #endif
 
+// 打开一个 适配器字符设备
 static int i2cdev_open(struct inode *inode, struct file *file)
 {
+	// 通过inode获得次设备号
 	unsigned int minor = iminor(inode);
 	struct i2c_client *client;
 	struct i2c_adapter *adap;
 
+	// 通过总线（适配器）的id(字符设备次设备号)获得i2c_adapter对象。
 	adap = i2c_get_adapter(minor);
 	if (!adap)
 		return -ENODEV;
@@ -589,6 +625,12 @@ static int i2cdev_open(struct inode *inode, struct file *file)
 	 * or I2C core code!!  It just holds private copies of addressing
 	 * information and maybe a PEC flag.
 	 */
+	/* 
+	* 这将创建一个匿名的i2c_client，稍后可能会使用I2C_SLAVE或I2C_SLAVE_FORCE将其指向某个地址。
+	* 
+	* 这个客户端是**从来没有注册**与驱动模型或I2C核心代码!!它只包含寻址信息的私有副本，
+	* 可能还有一个PEC标志。
+	*/
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client) {
 		i2c_put_adapter(adap);
@@ -613,6 +655,7 @@ static int i2cdev_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+// i2c 字符设备的操作方法集合。通过设备文件暴露给用户。
 static const struct file_operations i2cdev_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
@@ -625,30 +668,37 @@ static const struct file_operations i2cdev_fops = {
 };
 
 /* ------------------------------------------------------------------------- */
-
+// i2c 设备类：static int __init i2c_dev_init(void)。
 static struct class *i2c_dev_class;
 
+// 完成适配器设备字符设备化，并作为字符设备进行注册，然后通过设备文件暴露给用户。
 static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 {
 	struct i2c_adapter *adap;
 	struct i2c_dev *i2c_dev;
 	int res;
 
+	// struct device 应该是个适配器设备。
 	if (dev->type != &i2c_adapter_type)
 		return 0;
 	adap = to_i2c_adapter(dev);
 
+	// 将 struct i2c_adapter 设备 字符设备化。
 	i2c_dev = get_free_i2c_dev(adap);
 	if (IS_ERR(i2c_dev))
 		return PTR_ERR(i2c_dev);
 
+	// 初始化 字符设备结构对象。
 	cdev_init(&i2c_dev->cdev, &i2cdev_fops);
 	i2c_dev->cdev.owner = THIS_MODULE;
+
+	// 适配器的总线号会作为字符设备的次设备号。注册字符设备到系统。
 	res = cdev_add(&i2c_dev->cdev, MKDEV(I2C_MAJOR, adap->nr), 1);
 	if (res)
 		goto error_cdev;
 
 	/* register this i2c device with the driver core */
+	// 将这个i2c设备注册到驱动核心,创建一个设备并将其注册到sysfs.创建的设备文件/dev/i2c-%d .
 	i2c_dev->dev = device_create(i2c_dev_class, &adap->dev,
 				     MKDEV(I2C_MAJOR, adap->nr), NULL,
 				     "i2c-%d", adap->nr);
@@ -695,6 +745,7 @@ static int i2cdev_notifier_call(struct notifier_block *nb, unsigned long action,
 
 	switch (action) {
 	case BUS_NOTIFY_ADD_DEVICE:
+		// 完成适配器设备字符设备化，并作为字符设备进行注册，然后通过设备文件暴露给用户。
 		return i2cdev_attach_adapter(dev, NULL);
 	case BUS_NOTIFY_DEL_DEVICE:
 		return i2cdev_detach_adapter(dev, NULL);
@@ -703,6 +754,7 @@ static int i2cdev_notifier_call(struct notifier_block *nb, unsigned long action,
 	return 0;
 }
 
+// 如何被回调？
 static struct notifier_block i2cdev_notifier = {
 	.notifier_call = i2cdev_notifier_call,
 };
@@ -710,7 +762,7 @@ static struct notifier_block i2cdev_notifier = {
 /* ------------------------------------------------------------------------- */
 
 /*
- * module load/unload record keeping
+ * module load/unload record keeping  模块加载/卸载记录保存
  */
 
 static int __init i2c_dev_init(void)
@@ -719,23 +771,29 @@ static int __init i2c_dev_init(void)
 
 	printk(KERN_INFO "i2c /dev entries driver\n");
 
+	// 注册一个设备号范围.为i2c设备。 I2C_MAJOR=89
 	res = register_chrdev_region(MKDEV(I2C_MAJOR, 0), I2C_MINORS, "i2c");
 	if (res)
 		goto out;
 
+	// 动态创建设备的逻辑类./sys/class/i2c-dev
 	i2c_dev_class = class_create(THIS_MODULE, "i2c-dev");
 	if (IS_ERR(i2c_dev_class)) {
 		res = PTR_ERR(i2c_dev_class);
 		goto out_unreg_chrdev;
 	}
+	// ATTRIBUTE_GROUPS(i2c);
 	i2c_dev_class->dev_groups = i2c_groups;
 
 	/* Keep track of adapters which will be added or removed later */
+	// 跟踪将在以后添加或删除的适配器.
 	res = bus_register_notifier(&i2c_bus_type, &i2cdev_notifier);
 	if (res)
 		goto out_unreg_class;
 
 	/* Bind to already existing adapters right away */
+	// 立即绑定到现有的适配器
+	// 遍历总线上的所有适配器。完成适配器设备字符设备化，并作为字符设备进行注册，然后通过设备文件暴露给用户。
 	i2c_for_each_dev(NULL, i2cdev_attach_adapter);
 
 	return 0;

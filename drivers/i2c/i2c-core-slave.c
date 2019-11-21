@@ -90,6 +90,14 @@ EXPORT_SYMBOL_GPL(i2c_slave_unregister);
  * Returns true if an I2C own slave address is detected, otherwise returns
  * false.
  */
+/**
+* i2c_detect_slave_mode -检测操作模式
+* @dev:拥有总线的设备
+*
+* 通过检查reg属性中使用的地址来检查I2C从设备节点。如果地址匹配I2C_OWN_SLAVE_ADDRESS标志，这意味着设备被配置为I2C从服务器，它将监听该地址。
+*
+* 如果检测到I2C的从地址，则返回true，否则返回false。
+*/
 bool i2c_detect_slave_mode(struct device *dev)
 {
 	if (IS_BUILTIN(CONFIG_OF) && dev->of_node) {

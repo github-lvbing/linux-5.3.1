@@ -876,6 +876,13 @@ EXPORT_SYMBOL(dmi_check_system);
  *
  *	dmi_setup must be called before this function is called.
  */
+/**
+* dmi_first_match -查找dmi_system_id结构匹配系统DMI数据
+* @list: dmi_system_id 结构的数组要匹配列表中的所有非空元素，必须匹配它们的槽(字段索引)数据(即，每个列表字符串必须是指定DMI槽的字符串数据的子字符串)才能被视为成功匹配。	
+*	
+* 遍历黑名单表，直到找到第一个匹配项。返回指向匹配项的指针，如果没有匹配项，则返回NULL。
+* 在调用这个函数之前必须调用dmi_setup。
+*/
 const struct dmi_system_id *dmi_first_match(const struct dmi_system_id *list)
 {
 	const struct dmi_system_id *d;

@@ -651,7 +651,7 @@ struct inode {
 		const unsigned int i_nlink;
 		unsigned int __i_nlink;
 	};
-	dev_t			i_rdev;
+	dev_t			i_rdev;  // 字符设备号
 	loff_t			i_size;
 	struct timespec64	i_atime;
 	struct timespec64	i_mtime;
@@ -876,6 +876,7 @@ static inline void i_size_write(struct inode *inode, loff_t i_size)
 #endif
 }
 
+// 通过inode获得次设备号
 static inline unsigned iminor(const struct inode *inode)
 {
 	return MINOR(inode->i_rdev);

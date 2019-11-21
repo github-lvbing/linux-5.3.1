@@ -2065,6 +2065,7 @@ static int device_private_init(struct device *dev)
  * *not* succeeded, use *only* put_device() to drop the reference
  * count.
  */
+ // 将设备添加到设备层次结构中。
 int device_add(struct device *dev)
 {
 	struct device *parent;
@@ -2265,6 +2266,12 @@ EXPORT_SYMBOL_GPL(device_register);
  * we do take care to provide for the case that we get a NULL
  * pointer passed in.
  */
+/**
+* get_device—增加设备的引用计数。
+* @dev:设备。
+*
+* 这只是简单地将调用转发给kobject_get()，不过我们确实注意提供了获取传入的空指针的情况。
+*/
 struct device *get_device(struct device *dev)
 {
 	return dev ? kobj_to_dev(kobject_get(&dev->kobj)) : NULL;
@@ -2275,6 +2282,10 @@ EXPORT_SYMBOL_GPL(get_device);
  * put_device - decrement reference count.
  * @dev: device in question.
  */
+/**
+* put_device -减少引用计数。
+* @dev:有问题的设备。
+*/
 void put_device(struct device *dev)
 {
 	/* might_sleep(); */
@@ -2916,6 +2927,24 @@ EXPORT_SYMBOL_GPL(device_create_vargs);
  * Note: the struct class passed to this function must have previously
  * been created with a call to class_create().
  */
+/**
+* device_create—创建一个设备并将其注册到sysfs
+* @class:指向这个设备应该注册到的结构类的指针
+* @parent:指向这个新设备的父结构设备的指针，如果有的话
+* @devt:要添加的char设备的dev_t
+* @drvdata:要添加到设备中进行回调的数据
+* @fmt:设备名称的字符串
+*
+* 这个函数可以被har设备类使用。将在sysfs中创建一个注册到指定类的结构设备。在/dev下创建的设备文件.
+*
+* 将创建一个“dev”文件，显示设备的dev_t，如果dev_t不是0，则为0。
+* 如果一个指向父结构体设备的指针被传入，那么新创建的结构体设备将是sysfs中该设备的一个子设备。
+* 指向struct设备的指针将从调用中返回。可以使用这个指针创建可能需要的任何其他sysfs文件。
+*
+* 如果成功，返回&struct设备指针;如果失败，返回ERR_PTR()。
+*
+* 注意:传递给这个函数的struct类必须是之前通过调用class_create()创建的。
+*/
 struct device *device_create(struct class *class, struct device *parent,
 			     dev_t devt, void *drvdata, const char *fmt, ...)
 {
