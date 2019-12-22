@@ -71,7 +71,7 @@ found:
 	return i2c_dev;
 }
 
-// 将 struct i2c_adapter 设备 字符设备化。
+// 将 struct i2c_adapter 设备 字符设备化。 被链表i2c_dev_list 管理。
 static struct i2c_dev *get_free_i2c_dev(struct i2c_adapter *adap)
 {
 	struct i2c_dev *i2c_dev;
@@ -683,7 +683,7 @@ static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 		return 0;
 	adap = to_i2c_adapter(dev);
 
-	// 将 struct i2c_adapter 设备 字符设备化。
+	// 将 struct i2c_adapter 设备 字符设备化。struct i2c_dev 
 	i2c_dev = get_free_i2c_dev(adap);
 	if (IS_ERR(i2c_dev))
 		return PTR_ERR(i2c_dev);
@@ -771,7 +771,7 @@ static int __init i2c_dev_init(void)
 
 	printk(KERN_INFO "i2c /dev entries driver\n");
 
-	// 注册一个设备号范围.为i2c设备。 I2C_MAJOR=89
+	// 注册一个字符设备号范围.为i2c设备。 I2C_MAJOR=89
 	res = register_chrdev_region(MKDEV(I2C_MAJOR, 0), I2C_MINORS, "i2c");
 	if (res)
 		goto out;

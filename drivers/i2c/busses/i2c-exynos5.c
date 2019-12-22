@@ -237,6 +237,21 @@ static const struct exynos_hsi2c_variant exynos7_hsi2c_data = {
 	.hw		= I2C_TYPE_EXYNOS7,
 };
 
+/*
+hsi2c_8: i2c@12e00000 {
+		compatible = "samsung,exynos5250-hsi2c";
+		reg = <0x12E00000 0x1000>;
+		interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c8_hs_bus>;
+		clocks = <&clock CLK_USI4>;
+		clock-names = "hsi2c";
+		status = "disabled";
+};
+
+*/
 static const struct of_device_id exynos5_i2c_match[] = {
 	{
 		.compatible = "samsung,exynos5-hsi2c",
@@ -743,46 +758,59 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	struct resource *mem;
 	int ret;
 
+	// 分配struct i2c_adapter 设备适配器结构对象 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(struct exynos5_i2c), GFP_KERNEL);
 	if (!i2c)
 		return -ENOMEM;
 
+	// 在设备树中获得本适配器的时钟
 	if (of_property_read_u32(np, "clock-frequency", &i2c->op_clock))
 		i2c->op_clock = HSI2C_FS_TX_CLOCK;
 
+	// 填充设备适配器结构（name/algo/）
 	strlcpy(i2c->adap.name, "exynos5-i2c", sizeof(i2c->adap.name));
 	i2c->adap.owner   = THIS_MODULE;
 	i2c->adap.algo    = &exynos5_i2c_algorithm;
 	i2c->adap.retries = 3;
 
+	//给本适配器指定绑定的平台设备对象。
 	i2c->dev = &pdev->dev;
+	// 在平台设备对象中获得时钟参数
 	i2c->clk = devm_clk_get(&pdev->dev, "hsi2c");
 	if (IS_ERR(i2c->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
 		return -ENOENT;
 	}
 
+	// 使能工作时钟
 	ret = clk_prepare_enable(i2c->clk);
 	if (ret)
 		return ret;
 
+	// 获得平台设备的mem资源
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	// remap 资源
 	i2c->regs = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(i2c->regs)) {
 		ret = PTR_ERR(i2c->regs);
 		goto err_clk;
 	}
 
+	// 将平台设备的设备树节点为 适配器设备的设备树节点
 	i2c->adap.dev.of_node = np;
+	// 指定适配器设备的通信方法数据为本设备适配器
 	i2c->adap.algo_data = i2c;
+	// 指定适配器的父设备为 平台匹配的平台设备。
 	i2c->adap.dev.parent = &pdev->dev;
 
 	/* Clear pending interrupts from u-boot or misc causes */
 	exynos5_i2c_clr_pend_irq(i2c);
 
 	spin_lock_init(&i2c->lock);
+	// 初始化工作队列
 	init_completion(&i2c->msg_complete);
 
+	// 获得平台设备的中断资源
 	i2c->irq = ret = platform_get_irq(pdev, 0);
 	if (ret <= 0) {
 		dev_err(&pdev->dev, "cannot find HS-I2C IRQ\n");
@@ -790,6 +818,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
+	// 注册中断资源
 	ret = devm_request_irq(&pdev->dev, i2c->irq, exynos5_i2c_irq,
 				IRQF_NO_SUSPEND | IRQF_ONESHOT,
 				dev_name(&pdev->dev), i2c);
@@ -799,18 +828,22 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
+	// 获得平台设备绑定驱动提供的相关私有约定数据 （ exynos_hsi2c_variant ）
 	i2c->variant = of_device_get_match_data(&pdev->dev);
 
+	// 适配器硬件相关init
 	ret = exynos5_hsi2c_clock_setup(i2c);
 	if (ret)
 		goto err_clk;
 
 	exynos5_i2c_reset(i2c);
 
+	// 注册适配器
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0)
 		goto err_clk;
 
+	// 指定适配器为平台设备的驱动数据。
 	platform_set_drvdata(pdev, i2c);
 
 	clk_disable(i2c->clk);

@@ -186,9 +186,16 @@ static int i2c_generic_bus_free(struct i2c_adapter *adap)
  * We will generate clock with rate 100 KHz and so duration of both clock levels
  * is: delay in ns = (10^6 / 100) / 2
  */
+	
+/*
+我们正在产生时钟脉冲。ndelay()决定了clk脉冲的持续时间。
+*我们将生成速率为100khz的时钟，因此两个时钟级别的持续时间为:ns = (10^6 / 100) / 2
+*/
+
 #define RECOVERY_NDELAY		5000
 #define RECOVERY_CLK_CNT	9
 
+// 恢复 i2c 时钟
 int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 {
 	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
@@ -249,6 +256,7 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 }
 EXPORT_SYMBOL_GPL(i2c_generic_scl_recovery);
 
+//  i2c 总线恢复
 int i2c_recover_bus(struct i2c_adapter *adap)
 {
 	if (!adap->bus_recovery_info)
@@ -980,7 +988,7 @@ static struct i2c_driver dummy_driver = {
  * i2c_unregister_device(); or an ERR_PTR to describe the error.
  */
  /*
- * i2c_new_dummy_device—返回绑定到虚拟驱动程序的新i2c设备
+ * i2c_new_dummy_device—实例化一个设备地址为addr的从设备，并注册到总线，返回绑定到虚拟驱动程序的新i2c设备
  * @adapter:管理设备的适配器
  * @address:使用的7位地址
  * Context:可以睡觉
@@ -1014,7 +1022,7 @@ EXPORT_SYMBOL_GPL(i2c_new_dummy_device);
  * i2c_unregister_device(); or NULL to indicate an error.
  */
  /*
- * i2c_new_dummy—返回绑定到虚拟驱动程序的新i2c设备
+ * i2c_new_dummy—实例化一个设备地址为addr的从设备，依附adapter后，并注册到总线，返回绑定到虚拟驱动程序的新i2c设备
  * @adapter:管理设备的适配器
  * @address:使用的7位地址
  * 上下文:可以睡觉
@@ -1734,7 +1742,7 @@ EXPORT_SYMBOL(i2c_add_adapter);
 * 另外，使用i2c_register_board_info()预先声明的I2C设备表将被扫描，并创建适当的驱动程序模型设备节点。
 * 否则，将返回一个负的errno值。	
 */
-// 给适配分配一个id，完成i2c_adapter到系统的注册，和相关设备实例化和到总线的注册，以及设备与依附适配驱动的绑定.
+// 自动（静态或者动态）给适配分配一个id，完成i2c_adapter到系统的注册，和相关设备实例化和到总线的注册，以及设备与依附适配驱动的绑定.
 int i2c_add_numbered_adapter(struct i2c_adapter *adap)
 {
 	if (adap->nr == -1) /* -1 means dynamically assign bus id */  // -1表示动态分配总线id
@@ -1970,10 +1978,10 @@ EXPORT_SYMBOL_GPL(i2c_for_each_dev);
 
 // 若dev是个适配器的话：
 // 根据设备驱动 i2c_driver->address_list 提供的设备地址列表，在适配器和设备驱动同类的情况下，
-// 完成驱动地址列表设备实例化与适配器的依附，并实现将设备的到i2c总线的注册，和其与驱动driver的绑定。
+// 完成驱动地址列表设备实例化与适配器的依附，并实现将设备的到i2c总线的注册，和其与驱动driver(data)的绑定。
 static int __process_new_driver(struct device *dev, void *data)
 {
-	if (dev->type != &i2c_adapter_type)
+	if (dev->type != &i2c_adapter_type)  // I2C_ADAPTER_VGADDC
 		return 0;
 	return i2c_do_add_adapter(data, to_i2c_adapter(dev));
 }
@@ -1985,6 +1993,7 @@ static int __process_new_driver(struct device *dev, void *data)
 /*
  * i2c_driver与一个或多个i2c_client(设备)节点一起使用，在与某个i2c_adapter关联的总线实例上访问i2c从芯片。	
  */
+//实例化driver地址列表中的从设备，注册到与本driver同类型的总线上所有适配器后，并完成与本driver绑定。
 int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 {
 	int res;
@@ -2012,7 +2021,7 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 
 	/* Walk the adapters that are already present */
 	// 遍历总线上的已经存在的适配器（一个总线上可能有多个适配器）,若与本驱动同类。
-	// 完成驱动地址列表设备实例化与适配器的依附，并实现将设备的到i2c总线的注册，和其与驱动driver的绑定。
+	// 完成设备驱动driver中地址列表设备实例化与此适配器的依附，并实现将从设备的到i2c总线的注册，和其与驱动driver的绑定。
 	i2c_for_each_dev(driver, __process_new_driver);
 
 	return 0;
@@ -2091,6 +2100,7 @@ struct i2c_cmd_arg {
 	void		*arg;
 };
 
+//i2c从设备绑定的驱动执行设备的特定功能
 static int i2c_cmd(struct device *dev, void *_arg)
 {
 	struct i2c_client	*client = i2c_verify_client(dev);
@@ -2106,12 +2116,14 @@ static int i2c_cmd(struct device *dev, void *_arg)
 	return 0;
 }
 
+// 让本适配器上的所有从设备均绑定的驱动执行设备的特定功能
 void i2c_clients_command(struct i2c_adapter *adap, unsigned int cmd, void *arg)
 {
 	struct i2c_cmd_arg	cmd_arg;
 
 	cmd_arg.cmd = cmd;
 	cmd_arg.arg = arg;
+	// 遍历本适配器的上孩子（从设备），i2c从设备绑定的驱动执行设备的特定功能
 	device_for_each_child(&adap->dev, &cmd_arg, i2c_cmd);
 }
 EXPORT_SYMBOL(i2c_clients_command);
@@ -2121,8 +2133,10 @@ static int __init i2c_init(void)
 {
 	int retval;
 
+	// 获得 aliases节点中的别名属性的最大id值
 	retval = of_alias_get_highest_id("i2c");
 
+	// 操作写信号量
 	down_write(&__i2c_board_lock);
 	// 更新   __i2c_first_dynamic_bus_num
 	if (retval >= __i2c_first_dynamic_bus_num)
@@ -2143,7 +2157,7 @@ static int __init i2c_init(void)
 		goto bus_err;
 	}
 #endif
-	// 注册一个虚拟的（逻辑）设备驱动。
+	// 注册一个虚拟的i2c（逻辑）设备驱动。
 	retval = i2c_add_driver(&dummy_driver);
 	if (retval)
 		goto class_err;
@@ -2284,6 +2298,7 @@ static int i2c_check_for_quirks(struct i2c_adapter *adap, struct i2c_msg *msgs, 
 *	
 * 调用此函数时必须持有适配器锁。不进行调试日志记录。adap->算法->master_xfer存在性没有检查。
 */
+// 在适配器上发送num个消息
 int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	unsigned long orig_jiffies;
@@ -2422,10 +2437,11 @@ EXPORT_SYMBOL(i2c_transfer);
 * @client:从设备的句柄
 * @buf:数据存储的地方
 * @count:要传输多少字节，必须小于64k，因为msg。len是u16
-* @flags:用于消息的标志，例如I2C_M_RD用于读取
+* @flags:用于消息的标志，例如 I2C_M_RD 用于读取
 *
 *返回负的errno，或传输的字节数。
 */
+// f根据lags，读写从设备的一个数据消息
 int i2c_transfer_buffer_flags(const struct i2c_client *client, char *buf,
 			      int count, u16 flags)
 {

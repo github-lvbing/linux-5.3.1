@@ -35,9 +35,9 @@ static const char *i2c_adapter_names[] = {
 
 /* Keep this enum consistent with i2c_adapter_names */
 enum i2c_adapter_type {
-	I2C_ADAPTER_SMBUS = 0,
-	I2C_ADAPTER_VGADDC,
-	I2C_ADAPTER_PANEL,
+	I2C_ADAPTER_SMBUS = 0, // smbus协议
+	I2C_ADAPTER_VGADDC,    //  vga ddc协议
+	I2C_ADAPTER_PANEL,     // 面板
 	I2C_ADAPTER_DESIGNWARE,
 };
 

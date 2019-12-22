@@ -180,6 +180,7 @@ struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
 EXPORT_SYMBOL(of_find_i2c_adapter_by_node);
 
 /* must call i2c_put_adapter() when done with returned i2c_adapter device */
+// 通过设备节点获得它的适配器
 struct i2c_adapter *of_get_i2c_adapter_by_node(struct device_node *node)
 {
 	struct i2c_adapter *adapter;

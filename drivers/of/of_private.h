@@ -29,7 +29,7 @@
  * 该结构将'aliases'节点的一个别名属性表示为aliases_lookup列表中的一个条目。
  */
 struct alias_prop {
-	struct list_head link;  // 被全局变量 struct list_head aliases_lookup管理。
+	struct list_head link;  // 被全局变量 struct list_head aliases_lookup 管理。
 	const char *alias;
 	struct device_node *np;
 	int id;
@@ -45,7 +45,7 @@ struct alias_prop {
 #define OF_ROOT_NODE_SIZE_CELLS_DEFAULT 1
 
 extern struct mutex of_mutex;
-extern struct list_head aliases_lookup;
+extern struct list_head aliases_lookup; // struct alias_prop 链表头。
 extern struct kset *of_kset;
 
 #if defined(CONFIG_OF_DYNAMIC)

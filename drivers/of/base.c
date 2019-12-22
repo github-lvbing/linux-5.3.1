@@ -2185,7 +2185,7 @@ EXPORT_SYMBOL_GPL(of_alias_get_alias_list);
  * given alias stem.  It returns the alias id if found.
  */
 /**	
-* of_alias_get_highest_id -获取给定stem的最高别名id	
+* of_alias_get_highest_id -获取给定stem的最大别名id	
 * @stem:要检查的别名stem	
 * 该函数遍历查找表以获得给定别名的最高别名id。如果找到，它将返回别名id。	
 */
@@ -2195,6 +2195,7 @@ int of_alias_get_highest_id(const char *stem)
 	int id = -ENODEV;
 
 	mutex_lock(&of_mutex);
+	// 在链表aliases_lookup上查找名为stem的aliases节点中的别名属性。
 	list_for_each_entry(app, &aliases_lookup, link) {
 		if (strcmp(app->stem, stem) != 0)
 			continue;
